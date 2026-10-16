@@ -1,9 +1,15 @@
 from fastapi import FastAPI
 
+from app.api.customers import router as customers_router
+from app.api.tickets import router as tickets_router
+
 app = FastAPI(
     title="Enterprise AI Operations Copilot",
-    version="0.1.0"
+    version="0.2.0"
 )
+
+app.include_router(customers_router)
+app.include_router(tickets_router)
 
 @app.get("/")
 def root():
