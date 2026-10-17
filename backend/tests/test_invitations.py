@@ -1,6 +1,6 @@
 from app.auth.security import create_access_token, hash_password
 from app.db.models import Customer, User
-
+from unittest.mock import patch
 
 def create_admin(db):
     customer = Customer(
@@ -33,15 +33,22 @@ def test_invitation_can_only_be_used_once(client, db):
         )
     }
 
-    response = client.post(
-        "/auth/invitations/",
-        json={"email": "newuser@example.com"},
-        headers=headers,
-    )
+    with patch(
+        "app.auth.invitation_routes.send_invitation_email"
+    ) as mock_send:
+        response = client.post(
+            "/auth/invitations/",
+            json={"email": "newuser@example.com"},
+            headers=headers,
+        )
 
     assert response.status_code == 201
+    assert "token" not in response.json()
 
-    token = response.json()["token"]
+    mock_send.assert_called_once()
+
+    # Capture the token passed to the mocked email service.
+    token = mock_send.call_args.kwargs["token"]
 
     first = client.post(
         "/auth/invitations/accept",
@@ -64,7 +71,6 @@ def test_invitation_can_only_be_used_once(client, db):
     )
 
     assert second.status_code == 400
-
 
 def test_public_registration_is_disabled(client, db):
     response = client.post(

@@ -15,6 +15,7 @@ from app.auth.invitations import (
 from app.auth.security import hash_password
 from app.db.database import get_db
 from app.db.models import Invitation, User
+from app.services.email_service import send_invitation_email
 
 router = APIRouter(
     prefix="/auth/invitations",
@@ -60,14 +61,26 @@ def create_invitation(
     db.commit()
     db.refresh(invitation)
 
-    # Local development only.
-    # In production, send this token through an email service.
+    try:
+        send_invitation_email(
+            recipient_email=email,
+            token=token,
+        )
+    except Exception as e:
+        # Never expose SMTP credentials or invitation tokens.
+        # Delivery failure should be recorded through safe
+        # operational monitoring, without sensitive data.
+        print(f"SMTP delivery failed: {type(e).__name__}: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail="Unable to deliver invitation email",
+        )
+
     return {
+        "message": "Invitation email sent successfully",
         "invitation_id": invitation.id,
-        "token": token,
         "expires_at": invitation.expires_at,
     }
-
 
 @router.post("/accept", status_code=201)
 def accept_invitation(

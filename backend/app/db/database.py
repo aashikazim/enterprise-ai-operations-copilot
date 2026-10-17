@@ -6,10 +6,21 @@ from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 
 class Settings(BaseSettings):
+    #database 
     database_url: str
     jwt_secret_key: str
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
+
+    # smtp
+    smtp_host: str = "smtp.gmail.com"
+    smtp_port: int = 465
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_from_email: str = ""
+    invitation_base_url: str = (
+        "http://localhost:5173/accept-invitation"
+    )
     
 
     model_config = SettingsConfigDict(
