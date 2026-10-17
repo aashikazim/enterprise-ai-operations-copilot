@@ -1,15 +1,9 @@
-from fastapi.testclient import TestClient
-from app.main import app
-
-client = TestClient(app)
-
-
-def test_protected_endpoint_requires_login():
+def test_protected_endpoint_requires_login(client):
     response = client.get("/tickets/")
     assert response.status_code == 401
 
 
-def test_invalid_login():
+def test_invalid_login(client):
     response = client.post(
         "/auth/login",
         data={
@@ -20,7 +14,7 @@ def test_invalid_login():
     assert response.status_code == 401
 
 
-def test_invalid_token():
+def test_invalid_token(client):
     response = client.get(
         "/tickets/",
         headers={"Authorization": "Bearer invalid-token"},

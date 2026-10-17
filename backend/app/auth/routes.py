@@ -1,5 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
+from fastapi import Request
+from app.auth.limiter import limiter
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -28,7 +30,13 @@ class UserResponse(BaseModel):
     customer_id: int
 
 
-@router.post("/register", response_model=UserResponse, status_code=201)
+# DISABLED: Public registration allows arbitrary customer_id selection.
+# Keep this implementation for local experiments only.
+#
+# To restore the old endpoint, uncomment the decorator below.
+# WARNING: Do not enable it in a publicly accessible multi-tenant system.
+#
+# @router.post("/register", response_model=UserResponse, status_code=201)
 def register(
     data: RegisterRequest,
     db: Session = Depends(get_db),
@@ -63,7 +71,9 @@ def register(
 
 
 @router.post("/login")
+@limiter.limit("5/minute")
 def login(
+    request: Request,
     form: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db),
 ):

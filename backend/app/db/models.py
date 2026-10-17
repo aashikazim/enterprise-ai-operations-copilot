@@ -85,3 +85,38 @@ class User(Base):
         DateTime(timezone=True),
         server_default=func.now()
     )
+
+
+class Invitation(Base):
+    __tablename__ = "invitations"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+
+    email: Mapped[str] = mapped_column(
+        String(255), nullable=False, index=True
+    )
+
+    customer_id: Mapped[int] = mapped_column(
+        ForeignKey("customers.id"), nullable=False
+    )
+
+    role: Mapped[str] = mapped_column(
+        String(20), default="user", nullable=False
+    )
+
+    token_hash: Mapped[str] = mapped_column(
+        String(64), unique=True, nullable=False
+    )
+
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+
+    used_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+    )
