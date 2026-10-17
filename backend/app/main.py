@@ -10,6 +10,7 @@ from app.auth.routes import router as auth_router
 from app.auth.invitation_routes import (
     router as invitation_router,
 )
+from app.api.knowledge import router as knowledge_router
 
 app = FastAPI(
     title="Enterprise AI Operations Copilot",
@@ -27,6 +28,7 @@ app.include_router(customers_router)
 app.include_router(tickets_router)
 app.include_router(auth_router)
 app.include_router(invitation_router)
+app.include_router(knowledge_router)
 
 @app.get("/")
 def root():

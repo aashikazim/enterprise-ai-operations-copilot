@@ -6,6 +6,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.database import Base
+from pgvector.sqlalchemy import Vector
 
 
 class Customer(Base):
@@ -21,6 +22,30 @@ class Customer(Base):
         back_populates="customer"
     )
 
+class DocumentChunk(Base):
+    __tablename__ = "document_chunks"
+
+    id: Mapped[int] = mapped_column(
+        primary_key=True
+    )
+
+    document_id: Mapped[int] = mapped_column(
+        ForeignKey("documents.id", ondelete="CASCADE"),
+        index=True,
+    )
+
+    customer_id: Mapped[int] = mapped_column(
+        ForeignKey("customers.id"),
+        index=True,
+    )
+
+    chunk_index: Mapped[int] = mapped_column()
+
+    content: Mapped[str] = mapped_column(Text)
+
+    embedding: Mapped[list[float]] = mapped_column(
+        Vector(384)
+    )
 
 class Document(Base):
     __tablename__ = "documents"
