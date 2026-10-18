@@ -2,7 +2,10 @@
 from unittest.mock import patch
 
 from app.services.rag_service import answer_question
-
+from app.services.rag_service import (
+    ABSTENTION_MESSAGE,
+    build_rag_result,
+)
 
 def test_rag_returns_answer_and_sources():
     mock_chunks = [
@@ -78,3 +81,41 @@ def test_rag_returns_fallback_when_no_chunks():
     assert "could not find" in result["answer"].lower()
 
     mock_generate.assert_not_called()
+
+
+def test_invalid_source_id_triggers_abstention():
+    chunks = [
+        {
+            "document_id": 10,
+            "title": "Password Policy",
+            "chunk_index": 0,
+            "similarity": 0.9,
+        }
+    ]
+
+    result = build_rag_result(
+        answer="Contact HR [Source 99].",
+        chunks=chunks,
+    )
+
+    assert result["abstained"] is True
+    assert result["answer"] == ABSTENTION_MESSAGE
+
+
+def test_valid_source_id_preserves_answer():
+    chunks = [
+        {
+            "document_id": 10,
+            "title": "Password Policy",
+            "chunk_index": 0,
+            "similarity": 0.9,
+        }
+    ]
+
+    result = build_rag_result(
+        answer="Contact IT [Source 1].",
+        chunks=chunks,
+    )
+
+    assert result["abstained"] is False
+    assert result["citation_validation"]["citations_valid"]

@@ -1,0 +1,26 @@
+
+[
+  {
+    "id": "password_reset",
+    "question": "How can an employee reset a forgotten password?",
+    "expected_keywords": [
+      "password",
+      "help desk"
+    ],
+    "should_abstain": false
+  },
+  {
+    "id": "mfa_recovery",
+    "question": "What should an employee do if MFA is unavailable?",
+    "expected_keywords": [
+      "identity verification"
+    ],
+    "should_abstain": false
+  },
+  {
+    "id": "unsupported_bonus_policy",
+    "question": "What is the company's stock bonus policy?",
+    "expected_keywords": [],
+    "should_abstain": true
+  }
+]

@@ -43,9 +43,19 @@ class RAGSource(BaseModel):
     similarity: float
 
 
+class CitationValidation(BaseModel):
+    cited_source_ids: list[int] = Field(default_factory=list)
+    invalid_source_ids: list[int] = Field(default_factory=list)
+    citations_valid: bool = True
+    has_citations: bool = False
+
 class RAGResponse(BaseModel):
     answer: str
     sources: list[RAGSource]
+    abstained: bool = False
+    citation_validation: CitationValidation = Field(
+        default_factory=CitationValidation
+    )
 
 
 @router.post("/ask", response_model=RAGResponse)
