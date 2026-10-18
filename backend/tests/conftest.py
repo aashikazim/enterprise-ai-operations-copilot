@@ -33,6 +33,10 @@ def db():
     # This fixture resets the dedicated test database.
     # Never point it at your development or production DB.
     assert engine.url.database == "copilot_test_db"
+    with engine.begin() as connection:
+        connection.execute(
+            text("CREATE EXTENSION IF NOT EXISTS vector")
+        )
 
     Base.metadata.drop_all(bind=engine)
     Base.metadata.create_all(bind=engine)
