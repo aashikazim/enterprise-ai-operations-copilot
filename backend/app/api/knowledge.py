@@ -9,6 +9,7 @@ from app.services.chunking import chunk_text
 from app.services.embedding_service import embed_text
 from sqlalchemy import select
 from app.auth.dependencies import get_current_user
+from app.services.retrieval_service import retrieve_chunks
 
 router = APIRouter(
     prefix="/knowledge",
@@ -75,45 +76,14 @@ def search_knowledge(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    query_vector = embed_text(data.query)
-
-    distance = (
-        DocumentChunk.embedding.cosine_distance(query_vector)
+    results = retrieve_chunks(
+        db=db,
+        query=data.query,
+        customer_id=user.customer_id,
+        top_k=data.top_k,
     )
-
-    statement = (
-        select(
-            DocumentChunk,
-            Document.title,
-            distance.label("distance"),
-        )
-        .join(
-            Document,
-            Document.id == DocumentChunk.document_id,
-        )
-        .where(
-            DocumentChunk.customer_id == user.customer_id,
-            Document.customer_id == user.customer_id,
-        )
-        .order_by(distance)
-        .limit(data.top_k)
-    )
-
-    results = db.execute(statement).all()
 
     return {
         "query": data.query,
-        "results": [
-            {
-                "document_id": chunk.document_id,
-                "title": title,
-                "chunk_index": chunk.chunk_index,
-                "content": chunk.content,
-                "similarity": round(
-                    max(0.0, min(1.0, 1 - float(dist))),
-                    4,
-                ),
-            }
-            for chunk, title, dist in results
-        ],
+        "results": results,
     }

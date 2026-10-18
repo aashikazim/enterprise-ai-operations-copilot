@@ -21,7 +21,10 @@ class Settings(BaseSettings):
     invitation_base_url: str = (
         "http://localhost:5173/accept-invitation"
     )
-    
+
+    #opeanai
+    openai_api_key: str = ""
+    openai_model: str = "gpt-4.1-mini"
 
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -31,6 +31,8 @@ services:
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-}
       INVITATION_BASE_URL: ${INVITATION_BASE_URL:-http://localhost:5173/accept-invitation}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1-mini}
     depends_on:
       db:
         condition: service_healthy
