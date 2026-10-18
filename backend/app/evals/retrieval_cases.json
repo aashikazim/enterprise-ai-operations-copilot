@@ -1,0 +1,20 @@
+[
+  {
+    "query": "How can an employee reset a forgotten password?",
+    "relevant_document_titles": [
+      "Employee Password Recovery Policy"
+    ]
+  },
+  {
+    "query": "What should I do if MFA is unavailable?",
+    "relevant_document_titles": [
+      "Employee Password Recovery Policy"
+    ]
+  },
+  {
+    "query": "How should an authentication incident be escalated?",
+    "relevant_document_titles": [
+      "Authentication Incident Response"
+    ]
+  }
+]

@@ -1,8 +1,33 @@
 from sqlalchemy.orm import Session
 
 from app.services.llm_service import generate_answer
-from app.services.retrieval_service import retrieve_chunks
+from app.services.hybrid_retrieval_service import hybrid_retrieve
+from app.services.reranking_service import rerank_chunks
 
+def retrieve_rag_context(
+    db,
+    question: str,
+    customer_id: int,
+    top_k: int = 5,
+    use_reranker: bool = True,
+):
+
+    candidates = hybrid_retrieve(
+        db=db,
+        query=question,
+        customer_id=customer_id,
+        top_k=20,
+        candidate_k=20,
+    )
+
+    if use_reranker:
+        return rerank_chunks(
+            query=question,
+            chunks=candidates,
+            top_k=top_k,
+        )
+
+    return candidates[:top_k]
 
 def build_context(chunks: list[dict]) -> str:
     sections = []
@@ -26,9 +51,9 @@ def answer_question(
     top_k: int = 5,
 ) -> dict:
 
-    chunks = retrieve_chunks(
+    chunks = retrieve_rag_context(
         db=db,
-        query=question,
+        question=question,
         customer_id=customer_id,
         top_k=top_k,
     )

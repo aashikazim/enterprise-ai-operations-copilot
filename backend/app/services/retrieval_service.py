@@ -40,6 +40,7 @@ def retrieve_chunks(
 
     return [
         {
+            "chunk_id": chunk.id,
             "document_id": chunk.document_id,
             "title": title,
             "chunk_index": chunk.chunk_index,
