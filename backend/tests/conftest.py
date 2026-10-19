@@ -13,7 +13,7 @@ os.environ["JWT_SECRET_KEY"] = (
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
 from app.db.database import Base, get_db

@@ -1,0 +1,42 @@
+
+[
+  {
+    "id": "fully_supported",
+    "question": "What should employees do if MFA is unavailable?",
+    "answer": "Employees must contact the IT help desk for identity verification [Source 1].",
+    "chunks": [
+      {
+        "document_id": 1,
+        "title": "MFA Recovery Policy",
+        "content": "Employees who cannot access MFA must contact the IT help desk for identity verification."
+      }
+    ],
+    "expected_faithfulness": 1.0
+  },
+  {
+    "id": "partially_supported",
+    "question": "How does MFA recovery work?",
+    "answer": "Employees must contact IT for identity verification [Source 1]. Recovery is guaranteed within 10 minutes [Source 1].",
+    "chunks": [
+      {
+        "document_id": 1,
+        "title": "MFA Recovery Policy",
+        "content": "Employees who cannot access MFA must contact the IT help desk for identity verification."
+      }
+    ],
+    "expected_faithfulness": 0.5
+  },
+  {
+    "id": "contradicted",
+    "question": "Can employees share their passwords?",
+    "answer": "Employees may share passwords with coworkers [Source 1].",
+    "chunks": [
+      {
+        "document_id": 2,
+        "title": "Password Security Policy",
+        "content": "Employees must never share passwords with coworkers."
+      }
+    ],
+    "expected_faithfulness": 0.0
+  }
+]

@@ -1,0 +1,56 @@
+[
+  {
+    "id": "fully_supported",
+    "expected": 1.0,
+    "actual": 1.0,
+    "absolute_error": 0.0,
+    "claims": [
+      {
+        "claim": "Employees must contact the IT help desk for identity verification if MFA is unavailable.",
+        "cited_source_ids": [
+          1
+        ],
+        "verdict": "supported",
+        "explanation": "The evidence from Source 1 explicitly states that employees who cannot access MFA must contact the IT help desk for identity verification."
+      }
+    ]
+  },
+  {
+    "id": "partially_supported",
+    "expected": 0.5,
+    "actual": 0.5,
+    "absolute_error": 0.0,
+    "claims": [
+      {
+        "claim": "Employees must contact IT for identity verification.",
+        "cited_source_ids": [
+          1
+        ],
+        "verdict": "supported",
+        "explanation": "Source 1 states that employees who cannot access MFA must contact the IT help desk for identity verification, directly supporting the claim."
+      },
+      {
+        "claim": "Recovery is guaranteed within 10 minutes.",
+        "cited_source_ids": [],
+        "verdict": "unsupported",
+        "explanation": "Source 1 does not mention any time guarantee for recovery, so there is no evidence to support this claim."
+      }
+    ]
+  },
+  {
+    "id": "contradicted",
+    "expected": 0.0,
+    "actual": 0.0,
+    "absolute_error": 0.0,
+    "claims": [
+      {
+        "claim": "Employees may share passwords with coworkers",
+        "cited_source_ids": [
+          1
+        ],
+        "verdict": "contradicted",
+        "explanation": "The evidence from Source 1 explicitly states that employees must never share passwords with coworkers, which directly contradicts the claim."
+      }
+    ]
+  }
+]
