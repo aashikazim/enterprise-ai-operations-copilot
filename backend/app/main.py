@@ -12,6 +12,8 @@ from app.auth.invitation_routes import (
 )
 from app.api.knowledge import router as knowledge_router
 from app.api.rag import router as rag_router
+from app.api.evaluation_jobs import router as evaluation_job_router
+
 
 app = FastAPI(
     title="Enterprise AI Operations Copilot",
@@ -31,6 +33,7 @@ app.include_router(auth_router)
 app.include_router(invitation_router)
 app.include_router(knowledge_router)
 app.include_router(rag_router)
+app.include_router(evaluation_job_router)
 
 @app.get("/")
 def root():
