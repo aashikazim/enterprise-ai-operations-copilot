@@ -10,10 +10,10 @@ quality evaluation.**
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
 ![Status](https://img.shields.io/badge/Status-Active%20Development-orange)
 
-> **Development milestone: Day 10 of a 30-day build.** This repository
+> **Development milestone: Day 11A — Correctness and Baseline.** This repository
 > is an evolving engineering portfolio project, not a
 > production-deployed service. The features below describe the
-> implementation through Day 10; future integrations are listed
+> implementation through Day 11A; future integrations are listed
 > separately.
 
 ## Overview
@@ -63,12 +63,12 @@ flowchart TD
     JobStatus --> Queue
 ```
 
-**Important:** As of Day 10, evaluation jobs are submitted through an
+**Important:** As of Day 11A, evaluation jobs are submitted through an
 internal queue function and a demo script. A public job-submission
 endpoint and automatic RAG evaluation sampling are **not yet
 implemented**.
 
-## Implemented Features (Days 1--10)
+## Implemented Features (Days 1--11A)
 
   -----------------------------------------------------------------------
   Area                                Implemented capability
@@ -113,8 +113,9 @@ implemented**.
                                       contradicted verdicts and evidence
                                       attribution
 
-  Evaluation persistence              RAG evaluation metrics stored in
-                                      PostgreSQL
+  Evaluation persistence              RAG metrics model, migration, and
+                                      tested persistence helper; live
+                                      request persistence remains planned
 
   Background processing               Durable PostgreSQL evaluation jobs,
                                       separate polling worker, retries
@@ -145,7 +146,18 @@ implemented**.
 7.  **Validate:** Check citations and apply abstention safeguards when
     evidence is insufficient.
 8.  **Evaluate:** Measure retrieval quality (including Recall@K and MRR)
-    and assess answer faithfulness at the claim level.
+    and assess answer faithfulness at the claim level using separate
+    evaluation utilities/worker jobs, not automatically on each request.
+
+Day 11A connects the existing genuine BM25 service to hybrid retrieval.
+It retains `BM25Okapi` term-frequency/length normalization and uses positive
+IDF weights, `log(1 + (N - df + 0.5) / (df + 0.5))`, so matching singleton
+and small tenant corpora are not discarded by the positive-score filter.
+PostgreSQL full-text search remains available in
+`backend/app/services/keyword_retrieval_service.py` for explicit comparison;
+there is no automatic fallback. Both retrieval implementations filter the
+document and chunk tenant before scoring. RRF resolves equal scores by
+chunk ID. BM25 still builds an in-memory tenant index per request.
 
 ### Durable Asynchronous Evaluation
 
@@ -261,13 +273,27 @@ customer documents.
 
 ### 5. Apply database migrations
 
+First verify the intended host/database and provision pgvector using an
+authorized database account on that database:
+
+``` sql
+CREATE EXTENSION IF NOT EXISTS vector;
+```
+
+This is a prerequisite for a fresh database: the historical vector-column
+migration runs before the Day 11A repair. Then apply migrations to the
+verified target:
+
 ``` powershell
 alembic upgrade head
 ```
 
 The `evaluation_jobs` table is introduced by the Day 10 migration. Do
 not substitute `drop_all()` for migrations; it can destroy existing
-data.
+data. Day 11A adds revision `1a11a0000001` after `fa8c76d8e74e` to create
+the missing `rag_metrics` table and restore the full-text GIN index. Earlier
+applied migrations are preserved. The index is also registered in ORM
+metadata to prevent future autogeneration from proposing its removal.
 
 ### 6. Start the API
 
@@ -296,13 +322,42 @@ call the model.
 
 ### 8. Run tests
 
+From `backend/`, activate the Python environment (`backend/.venv` uses
+Python 3.12.3 on the verified ARM64 host; the Dockerfile uses Python 3.11).
+Keep `DATABASE_URL` pointing to the development database for the safety
+comparison. Provision the two disposable databases before running pytest:
+
 ``` powershell
-python -m pytest tests/ -v
+python -m scripts.prepare_test_database
+python -m scripts.prepare_test_database --database copilot_migration_test_db
+python -m pytest tests/ -v -p no:cacheprovider
 ```
 
-Tests use an isolated PostgreSQL database (`copilot_test_db`), not the
-development database. Make sure the test database and required
-extensions are available before running integration tests.
+The script reads connection credentials from the environment or
+`backend/.env`, creates only the two allowlisted databases, and provisions
+`vector` without printing credentials. The account needs database-creation
+and extension privileges. Existing databases are reported rather than
+deleted. Both databases must be dedicated to this suite; review the
+reported tables if reusing an existing database.
+
+Tests reset tables in `copilot_test_db`. Migration tests use
+`copilot_migration_test_db`, downgrade to base, and exercise the complete
+migration chain, a repeated upgrade, schema/model alignment, and repair
+downgrade/re-upgrade. Neither database may contain data you need to keep.
+Run the suite serially; its reset fixtures do not support concurrent runs.
+
+Optional `TEST_DATABASE_URL` and `MIGRATION_TEST_DATABASE_URL` environment
+variables can override connection details, but database names must remain
+exactly as above. Safety checks reject the development database name and
+verify `current_database()` before fixture resets. The application is
+configured to use the test URL before application imports.
+
+Verified October 30, 2026: **78 tests passed**, including all 55 original
+collected tests and 23 added cases. External LLM calls and embeddings in
+integration tests are mocked. `tests/legacy_test_api.py` remains excluded
+by pytest's default naming pattern; its unauthenticated provisioning
+expectations are obsolete. Development database migrations were not
+applied during Day 11A validation.
 
 ## API Surface
 
@@ -327,9 +382,10 @@ Representative endpoints implemented during the first ten days:
                                                         authenticated tenant
   -----------------------------------------------------------------------------
 
-Authentication, customer, document, and ticket CRUD endpoints are also
-part of the backend; refer to `/docs` for the exact request and response
-schemas. **The Day 10 evaluation queue does not yet expose a public POST
+Authentication, tenant-scoped customer reads, document ingestion/search,
+and ticket CRUD are part of the backend; customer creation and public
+registration are disabled. Refer to `/docs` for exact schemas.
+**The evaluation queue does not yet expose a public POST
 submission endpoint.**
 
 ### Example: Ask a Knowledge Question
@@ -418,6 +474,7 @@ limits cross-customer information exposure.
 
 The following capabilities are **planned, not yet implemented**:
 
+-   [ ] Persist metrics automatically for live `/rag/ask` requests.
 -   [ ] Connect automatic evaluation sampling to real `/rag/ask`
     traffic.
 -   [ ] Add an authenticated evaluation-submission API and worker health

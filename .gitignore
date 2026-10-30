@@ -8,3 +8,7 @@ __pycache__/
 node_modules/
 dist/
 build/
+
+# Local development instructions and handoff history
+/AGENTS.md
+/docs/PROJECT_CONTEXT.md

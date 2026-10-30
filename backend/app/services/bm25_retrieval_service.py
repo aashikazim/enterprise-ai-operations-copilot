@@ -1,5 +1,7 @@
 
 import re
+from collections import Counter
+from math import log1p
 
 from rank_bm25 import BM25Okapi
 from sqlalchemy import select
@@ -23,11 +25,17 @@ def bm25_search(
     """
     Perform true Okapi BM25 ranking over the tenant's document chunks.
 
-    Day 7 implementation:
     - Load only chunks belonging to the authenticated tenant.
     - Build an in-memory BM25 index.
     - Score and rank chunks.
+    - Use positive Robertson IDF: log(1 + (N - df + .5)/(df + .5)).
+      The library's raw IDF can be zero/negative for small corpora;
+      positive IDF preserves matching singleton and common-term results.
     """
+
+    query_tokens = tokenize(query)
+    if top_k <= 0 or not query_tokens:
+        return []
 
     stmt = (
         select(DocumentChunk, Document.title)
@@ -44,12 +52,7 @@ def bm25_search(
 
     rows = db.execute(stmt).all()
 
-    if not rows or top_k <= 0:
-        return []
-
-    query_tokens = tokenize(query)
-
-    if not query_tokens:
+    if not rows:
         return []
 
     tokenized_corpus = [
@@ -61,6 +64,14 @@ def bm25_search(
         return []
 
     bm25 = BM25Okapi(tokenized_corpus)
+
+    document_frequencies = Counter(
+        token for tokens in tokenized_corpus for token in set(tokens)
+    )
+    bm25.idf = {
+        token: log1p((len(rows) - frequency + 0.5) / (frequency + 0.5))
+        for token, frequency in document_frequencies.items()
+    }
 
     scores = bm25.get_scores(query_tokens)
 

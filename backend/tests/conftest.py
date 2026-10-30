@@ -1,12 +1,21 @@
 import os
 
-TEST_DATABASE_URL = (
-    "postgresql+psycopg://copilot:localdev"
-    "@localhost:5432/copilot_test_db"
+from scripts.prepare_test_database import (
+    development_url,
+    validate_test_url,
+    verify_test_connection,
+)
+
+DEVELOPMENT_DATABASE_URL = development_url()
+TEST_DATABASE_URL = validate_test_url(
+    os.environ.get("TEST_DATABASE_URL")
+    or DEVELOPMENT_DATABASE_URL.set(database="copilot_test_db"),
+    DEVELOPMENT_DATABASE_URL,
+    "copilot_test_db",
 )
 
 # Set before importing the application or database module.
-os.environ["DATABASE_URL"] = TEST_DATABASE_URL
+os.environ["DATABASE_URL"] = TEST_DATABASE_URL.render_as_string(hide_password=False)
 os.environ["JWT_SECRET_KEY"] = (
     "local-test-secret-not-for-production"
 )
@@ -20,9 +29,7 @@ from app.db.database import Base, get_db
 from app.main import app
 from app.db.models import Customer, User
 from app.auth.security import hash_password, create_access_token
-# from app.db import models
-from fastapi.testclient import TestClient
-from app.main import app
+from app.db.rag_metric_model import RAGMetric  # register all tables for fixtures
 
 engine = create_engine(TEST_DATABASE_URL)
 TestSessionLocal = sessionmaker(bind=engine)
@@ -32,19 +39,21 @@ TestSessionLocal = sessionmaker(bind=engine)
 def db():
     # This fixture resets the dedicated test database.
     # Never point it at your development or production DB.
-    assert engine.url.database == "copilot_test_db"
     with engine.begin() as connection:
+        verify_test_connection(connection, DEVELOPMENT_DATABASE_URL, "copilot_test_db")
         connection.execute(
             text("CREATE EXTENSION IF NOT EXISTS vector")
         )
+        Base.metadata.drop_all(bind=connection)
+        Base.metadata.create_all(bind=connection)
 
-    Base.metadata.drop_all(bind=engine)
-    Base.metadata.create_all(bind=engine)
-
-    with TestSessionLocal() as session:
-        yield session
-
-    Base.metadata.drop_all(bind=engine)
+    try:
+        with TestSessionLocal() as session:
+            yield session
+    finally:
+        with engine.begin() as connection:
+            verify_test_connection(connection, DEVELOPMENT_DATABASE_URL, "copilot_test_db")
+            Base.metadata.drop_all(bind=connection)
 
 
 @pytest.fixture

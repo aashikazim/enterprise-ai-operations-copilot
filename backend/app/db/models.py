@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 
 from sqlalchemy import (
-    DateTime, ForeignKey, String, Text, func
+    DateTime, ForeignKey, Index, String, Text, func, literal_column
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -45,6 +45,14 @@ class DocumentChunk(Base):
 
     embedding: Mapped[list[float]] = mapped_column(
         Vector(384)
+    )
+
+    __table_args__ = (
+        Index(
+            "ix_document_chunks_content_fts",
+            func.to_tsvector(literal_column("'english'::regconfig"), content),
+            postgresql_using="gin",
+        ),
     )
 
 class Document(Base):

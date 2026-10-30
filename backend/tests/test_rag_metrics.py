@@ -54,3 +54,25 @@ def test_empty_metrics():
 
     assert summary["request_count"] == 0
     assert summary["average_faithfulness"] is None
+
+
+def test_metric_persistence(db, test_customer):
+    from app.monitoring.metric_repository import save_rag_metric
+
+    metric = RAGRequestMetric(
+        request_id="metric-persistence-test",
+        customer_id=test_customer.id,
+        latency_ms=100,
+        retrieval_ms=20,
+        generation_ms=80,
+        input_tokens=100,
+        output_tokens=50,
+        estimated_cost_usd=0.001,
+        abstained=False,
+        citations_valid=True,
+    )
+    record = save_rag_metric(db, metric)
+    assert record.id is not None
+    assert record.customer_id == test_customer.id
+    assert record.request_id == metric.request_id
+    assert record.faithfulness_score is None

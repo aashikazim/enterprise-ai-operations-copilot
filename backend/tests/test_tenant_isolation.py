@@ -117,3 +117,45 @@ def test_regular_user_cannot_create_ticket(client, db):
     )
 
     assert response.status_code == 403
+
+
+def test_retrieval_filters_both_document_and_chunk_tenants(db, monkeypatch):
+    from unittest.mock import patch
+    from app.db.models import Document, DocumentChunk
+    from app.services.bm25_retrieval_service import bm25_search
+    from app.services.keyword_retrieval_service import keyword_search
+    from app.services.hybrid_retrieval_service import hybrid_retrieve, reciprocal_rank_fusion
+
+    customers = [Customer(name=name, email=f"{name}@example.com") for name in ("retrieval-a", "retrieval-b")]
+    db.add_all(customers)
+    db.flush()
+    documents = [Document(title="Synthetic MFA policy", content="MFA", customer_id=c.id) for c in customers]
+    db.add_all(documents)
+    db.flush()
+    chunks = []
+    # Include malformed cross-tenant associations to prove both filters apply.
+    for index, (document, customer) in enumerate([
+        (documents[0], customers[0]), (documents[1], customers[1]),
+        (documents[0], customers[1]), (documents[1], customers[0]),
+    ]):
+        chunk = DocumentChunk(
+            document_id=document.id, customer_id=customer.id, chunk_index=index,
+            content="MFA recovery", embedding=[1.0] + [0.0] * 383,
+        )
+        db.add(chunk)
+        chunks.append(chunk)
+    db.commit()
+    monkeypatch.setattr("app.services.retrieval_service.embed_text", lambda _: [1.0] + [0.0] * 383)
+
+    for customer, expected in zip(customers, chunks[:2]):
+        for search in (bm25_search, keyword_search):
+            assert [r["chunk_id"] for r in search(db, "MFA", customer.id)] == [expected.id]
+        with patch(
+            "app.services.hybrid_retrieval_service.reciprocal_rank_fusion",
+            wraps=reciprocal_rank_fusion,
+        ) as fusion:
+            results = hybrid_retrieve(db, "MFA", customer.id)
+        assert [r["chunk_id"] for r in results] == [expected.id]
+        # Verify exclusion before fusion, not just in the returned list.
+        for candidates in fusion.call_args.args:
+            assert [r["chunk_id"] for r in candidates] == [expected.id]

@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 
 from app.services.retrieval_service import retrieve_chunks
-from app.services.keyword_retrieval_service import keyword_search
+from app.services.bm25_retrieval_service import bm25_search
 
 
 def reciprocal_rank_fusion(
@@ -54,7 +54,7 @@ def hybrid_retrieve(
         top_k=candidate_k,
     )
 
-    keyword_results = keyword_search(
+    keyword_results = bm25_search(
         db=db,
         query=query,
         customer_id=customer_id,

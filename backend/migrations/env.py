@@ -11,6 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from app.db.database import Base, get_settings
 from app.db import models
 from app.db.evaluation_job_model import EvaluationJob
+from app.db.rag_metric_model import RAGMetric
 from alembic import context
 
 # this is the Alembic Config object, which provides
