@@ -19,7 +19,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     ports:
-      - "127.0.0.1:8000:8000"
+      - "192.168.68.58:8000:8000"
     environment:
       DATABASE_URL: postgresql+psycopg://copilot:${POSTGRES_PASSWORD}@db:5432/copilot_db
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Set JWT_SECRET_KEY}
