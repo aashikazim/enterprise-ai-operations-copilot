@@ -45,87 +45,58 @@ def make_session_factory():
     )
 
 
+def process_next_job(session_factory, client, evaluator=None):
+    """Process at most one durable job, with no DB session during inference.
+
+    Return False only for an idle queue. All writes use fresh transactions;
+    error details stay outside logs and last_error contains a fixed category.
+    """
+    evaluator = evaluator or evaluate_faithfulness
+    with session_factory() as db:
+        expire_exhausted_jobs(db)
+        job = claim_next_job(db)
+        if job is None:
+            return False
+        data = {
+            "id": job.id, "attempts": job.attempts, "question": job.question,
+            "answer": job.answer, "evidence": job.evidence,
+        }
+
+    started = time.perf_counter()
+    try:
+        result = evaluator(
+            question=data["question"], answer=data["answer"],
+            chunks=data["evidence"], client=client,
+        )
+    except Exception:
+        with session_factory() as db:
+            saved = fail_job(db, data["id"], data["attempts"], "evaluation_failed")
+        outcome = "retry_or_failure" if saved else "stale_failure"
+    else:
+        with session_factory() as db:
+            saved = complete_job(db, data["id"], data["attempts"], result)
+        outcome = "completed" if saved else "stale_result"
+    logger.info(
+        "evaluation_job job_id=%s attempt=%s outcome=%s duration_ms=%.3f",
+        data["id"], data["attempts"], outcome,
+        (time.perf_counter() - started) * 1000,
+    )
+    return True
+
+
 def run_worker():
     session_factory = make_session_factory()
     client = OpenAI()
-
     logger.info("Evaluation worker started")
-
     while True:
         try:
-            # Claim with a fresh session.
-            with session_factory() as db:
-                expire_exhausted_jobs(db)
-                job = claim_next_job(db)
-
-                if job is None:
-                    job_data = None
-                else:
-                    job_data = {
-                        "id": job.id,
-                        "attempts": job.attempts,
-                        "question": job.question,
-                        "answer": job.answer,
-                        "evidence": job.evidence,
-                    }
-
-            if job_data is None:
+            if not process_next_job(session_factory, client):
                 time.sleep(3)
-                continue
-
-            job_id = job_data["id"]
-            attempt = job_data["attempts"]
-
-            logger.info(
-                "Evaluating job %s attempt %s",
-                job_id,
-                attempt,
-            )
-
-            try:
-                result = evaluate_faithfulness(
-                    question=job_data["question"],
-                    answer=job_data["answer"],
-                    chunks=job_data["evidence"],
-                    client=client,
-                )
-
-                with session_factory() as db:
-                    saved = complete_job(
-                        db,
-                        job_id=job_id,
-                        expected_attempt=attempt,
-                        result=result,
-                    )
-
-                if saved:
-                    logger.info("Job %s completed", job_id)
-                else:
-                    logger.warning(
-                        "Job %s result rejected as stale",
-                        job_id,
-                    )
-
-            except Exception as exc:
-                logger.exception(
-                    "Evaluation failed for job %s",
-                    job_id,
-                )
-
-                with session_factory() as db:
-                    fail_job(
-                        db,
-                        job_id=job_id,
-                        expected_attempt=attempt,
-                        error=type(exc).__name__,
-                    )
-
         except KeyboardInterrupt:
             logger.info("Worker stopped")
             break
-
         except Exception:
-            logger.exception("Worker loop error")
+            logger.error("Evaluation worker iteration failed; retrying after delay")
             time.sleep(5)
 
 

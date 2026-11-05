@@ -7,6 +7,7 @@ from app.evals.answer_quality import validate_citations
 import uuid
 
 from app.services.observability import measure_stage
+from app.services.evaluation_submission import submit_sampled_evaluation
 
 ABSTENTION_MESSAGE = (
     "I could not find sufficient information in the "
@@ -106,10 +107,15 @@ def answer_question(
         )
 
     if not chunks:
-        return build_rag_result(
+        result = build_rag_result(
             answer=ABSTENTION_MESSAGE,
             chunks=[],
         )
+        submit_sampled_evaluation(
+            db, question=question, result=result, chunks=[],
+            customer_id=customer_id, request_id=request_id,
+        )
+        return result
 
     context = build_context(chunks)
 
@@ -121,7 +127,12 @@ def answer_question(
 
     
 
-    return build_rag_result(
+    result = build_rag_result(
         answer=answer,
         chunks=chunks,
     )
+    submit_sampled_evaluation(
+        db, question=question, result=result, chunks=chunks,
+        customer_id=customer_id, request_id=request_id,
+    )
+    return result

@@ -73,14 +73,14 @@ def ask_rag(
         )
 
     except OpenAIError:
-        logger.exception("LLM provider request failed")
+        logger.error("LLM provider request failed")
         raise HTTPException(
             status_code=503,
             detail="AI service temporarily unavailable",
         )
 
     except RuntimeError:
-        logger.exception("RAG service configuration error")
+        logger.error("RAG service configuration error")
         raise HTTPException(
             status_code=503,
             detail="AI service unavailable",

@@ -33,6 +33,8 @@ services:
       INVITATION_BASE_URL: ${INVITATION_BASE_URL:-http://localhost:5173/accept-invitation}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1-mini}
+      RAG_EVAL_ENABLED: ${RAG_EVAL_ENABLED:-false}
+      RAG_EVAL_SAMPLE_RATE: ${RAG_EVAL_SAMPLE_RATE:-0.0}
     depends_on:
       db:
         condition: service_healthy

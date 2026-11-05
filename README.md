@@ -10,10 +10,10 @@ quality evaluation.**
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
 ![Status](https://img.shields.io/badge/Status-Active%20Development-orange)
 
-> **Development milestone: Day 11A — Correctness and Baseline.** This repository
+> **Development milestone: Day 11 — Sampled asynchronous evaluation.** This repository
 > is an evolving engineering portfolio project, not a
 > production-deployed service. The features below describe the
-> implementation through Day 11A; future integrations are listed
+> implementation through Day 11; future integrations are listed
 > separately.
 
 ## Overview
@@ -55,6 +55,8 @@ flowchart TD
     Rerank --> LLM[OpenAI Responses API]
     LLM --> Validate[Citation Validation + Abstention]
     Validate --> Client
+    Validate --> Sample[Opt-in sampled evaluation / verified evidence]
+    Sample --> Queue
     EvalSubmit[Explicit Evaluation Submission / Demo Script] --> Queue[(PostgreSQL Evaluation Jobs)]
     Queue --> Worker[Separate Evaluation Worker]
     Worker --> Faith[Claim-Level Faithfulness Assessment]
@@ -63,12 +65,42 @@ flowchart TD
     JobStatus --> Queue
 ```
 
-**Important:** As of Day 11A, evaluation jobs are submitted through an
-internal queue function and a demo script. A public job-submission
-endpoint and automatic RAG evaluation sampling are **not yet
-implemented**.
+**Day 11:** `/rag/ask` can durably enqueue sampled evaluations without an
+inline evaluator call. This is disabled by default. Internal/demo enqueue
+remains available; no public submission POST has been added. See
+[implementation status](docs/IMPLEMENTATION_STATUS.md),
+[trust boundaries](docs/ARCHITECTURE.md), and the
+[Day 11 journal](docs/learning-journals/day-11.md).
 
-## Implemented Features (Days 1--11A)
+Set `RAG_EVAL_ENABLED=true` and `RAG_EVAL_SAMPLE_RATE=0.1` in the API's
+environment to sample approximately 10% of eligible requests. PowerShell:
+
+```powershell
+$env:RAG_EVAL_ENABLED = "true"
+$env:RAG_EVAL_SAMPLE_RATE = "0.1"
+python -m uvicorn app.main:app --reload
+# Separate terminal, from backend with the same database/provider configuration:
+python -m app.workers.evaluation_worker
+```
+
+Use `false`/`true` and a finite numeric rate in `[0,1]`; invalid values fail
+configuration validation. `backend/.env.example` provides placeholders.
+Sampling hashes a fresh server-generated request UUID; retries of an HTTP
+request are separate requests. Abstentions, missing evidence and invalid
+citations are skipped. Enqueue verifies the original ordered full-text chunk
+snapshot against both tenant owners, then commits through a separate session.
+Changed/deleted/foreign evidence is skipped as a unit. Enqueue errors return
+the original RAG answer and record only a safe outcome and duration.
+
+Evaluation adds database latency to sampled requests, but no evaluator LLM
+latency. The worker may incur extra provider charges; enable only for data
+approved for provider processing. No high-risk classifier exists: high-risk
+content receives the same sampling policy and requires human review; scores
+are monitoring signals, not an authorization or correctness guarantee.
+The response shape is unchanged and does not expose an evaluation job ID.
+Process-local counters reset at restart; aggregated monitoring follows Day 12.
+
+## Implemented Features (Days 1--11)
 
   -----------------------------------------------------------------------
   Area                                Implemented capability
@@ -147,7 +179,7 @@ implemented**.
     evidence is insufficient.
 8.  **Evaluate:** Measure retrieval quality (including Recall@K and MRR)
     and assess answer faithfulness at the claim level using separate
-    evaluation utilities/worker jobs, not automatically on each request.
+    evaluation utilities/worker jobs, optionally sampled from real requests.
 
 Day 11A connects the existing genuine BM25 service to hybrid retrieval.
 It retains `BM25Okapi` term-frequency/length normalization and uses positive
@@ -179,8 +211,8 @@ requests:
     tenant isolation.
 
 **Current limitations:** This is a database-backed polling queue rather
-than a dedicated broker. Lease renewal, operational alerting, automatic
-evaluation sampling, and fully containerized worker deployment remain
+than a dedicated broker. Lease renewal, operational alerting,
+and fully containerized worker deployment remain
 future hardening work.
 
 ## Technology Stack
@@ -475,8 +507,7 @@ limits cross-customer information exposure.
 The following capabilities are **planned, not yet implemented**:
 
 -   [ ] Persist metrics automatically for live `/rag/ask` requests.
--   [ ] Connect automatic evaluation sampling to real `/rag/ask`
-    traffic.
+-   [x] Connect opt-in evaluation sampling to real `/rag/ask` traffic.
 -   [ ] Add an authenticated evaluation-submission API and worker health
     checks.
 -   [ ] Containerize and operationalize the worker in Docker Compose.

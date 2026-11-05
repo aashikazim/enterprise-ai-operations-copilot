@@ -1,6 +1,7 @@
 from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field, field_validator
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
@@ -25,6 +26,25 @@ class Settings(BaseSettings):
     #opeanai
     openai_api_key: str = ""
     openai_model: str = "gpt-4.1-mini"
+
+    rag_eval_enabled: bool = False
+    rag_eval_sample_rate: float = Field(default=0.0, ge=0, le=1, allow_inf_nan=False)
+
+    @field_validator("rag_eval_enabled", mode="before")
+    @classmethod
+    def validate_eval_enabled(cls, value):
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str) and value.lower() in {"true", "false"}:
+            return value.lower() == "true"
+        raise ValueError("RAG_EVAL_ENABLED must be true or false")
+
+    @field_validator("rag_eval_sample_rate", mode="before")
+    @classmethod
+    def validate_eval_rate(cls, value):
+        if isinstance(value, bool):
+            raise ValueError("RAG_EVAL_SAMPLE_RATE must be numeric, not boolean")
+        return value
 
     model_config = SettingsConfigDict(
         env_file=".env",
