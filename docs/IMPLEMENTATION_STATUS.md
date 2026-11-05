@@ -43,7 +43,7 @@ From `backend/`:
 | Day | Status |
 |---|---|
 | 11 | Completed: opt-in sampled durable evaluation; independent transaction; tenant snapshot checks; worker tests |
-| 12 | Planned: tenant monitoring and queue observability |
+| 12 | Completed: tenant-admin summaries, pagination, Prometheus text, operator counters, privacy policy |
 | 13 | Planned: sanitized tracing |
 | 14 | Planned: bounded LangGraph workflow |
 | 15 | Planned: typed tenant-authorized tools |
@@ -97,3 +97,21 @@ provisioning remain explicit owner decisions.
   synchronous and can add connection/statement wait. No job ID in unchanged
   RAG response. Cross-request idempotency is not claimed. Sampling disabled
   means zero evaluation payload writes. Next: tenant-safe monitoring (Day 12).
+
+## Day 12 — completed, 2026-11-05
+
+- `app/api/monitoring.py`, `app/monitoring/queue_summary.py`: tenant-admin
+  summaries, paginated jobs and Prometheus-compatible text. Separate optional
+  operator token protects process-wide enqueue counters at `/metrics`.
+- Aggregates include queue status/age, expired leases, retry count, completion
+  throughput, processing duration, claim verdicts and existing persisted RAG
+  metrics. Payloads excluded; scopes applied before aggregation.
+- `docs/EVALUATION_DATA_POLICY.md` documents access, definitions, retention
+  recommendation and why automatic destructive cleanup remains disabled.
+- Targeted: `pytest tests/test_monitoring.py -q -p no:cacheprovider --tb=short`:
+  **10 passed in 2.07s**. Regression baseline command: **116 passed in 11.24s**,
+  including migrations. Providers mocked; no new dependency or migration.
+- Limitations: process counters reset; no deployed scraper/UI. Historical RAG
+  metric aggregates may be empty because live metric persistence is not wired.
+  Suggested retention is policy documentation, not automated deletion.
+- Next: trace correlation across the durable worker boundary (Day 13).

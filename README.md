@@ -100,7 +100,25 @@ are monitoring signals, not an authorization or correctness guarantee.
 The response shape is unchanged and does not expose an evaluation job ID.
 Process-local counters reset at restart; aggregated monitoring follows Day 12.
 
-## Implemented Features (Days 1--11)
+## Monitoring (Day 12)
+
+Tenant administrators can query `GET /rag/monitoring/summary?hours=24`,
+`GET /rag/monitoring/jobs?status=failed&limit=50&offset=0`, and
+`GET /rag/monitoring/metrics` with their existing JWT. Summaries include
+current queue depth/age, expired leases, retries, completion throughput,
+processing duration, verdict counts and persisted RAG metric percentiles/rates.
+Job lists omit questions, answers, evidence and raw errors. All queries enforce
+the authenticated tenant before aggregation; regular users receive 403.
+
+`GET /metrics` exposes process-wide content-free enqueue counters only when
+`MONITORING_METRICS_TOKEN` is configured and supplied as its Bearer token.
+Tenant JWTs do not grant this operator permission. Both metric formats are
+Prometheus-compatible; no Prometheus server is deployed. Process counters
+reset on restart. See [payload policy and metric definitions](docs/EVALUATION_DATA_POLICY.md).
+Automatic payload deletion is not enabled. RAG rate/latency summaries require
+persisted metrics; an empty population returns nulls, not zero-valued claims.
+
+## Implemented Features (Days 1--12)
 
   -----------------------------------------------------------------------
   Area                                Implemented capability

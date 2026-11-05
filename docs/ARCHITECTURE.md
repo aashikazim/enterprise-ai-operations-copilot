@@ -51,3 +51,13 @@ commit/rollback the request's session. The RAG HTTP response shape is unchanged.
 - Test and migration databases are separate allowlisted disposable databases;
   tests must not mutate development or production schemas.
 - Future agents/tools/approvals/frontends are roadmap items, absent at audit.
+
+## Day 12 monitoring boundary
+
+`app/api/monitoring.py` uses the existing admin dependency for tenant summaries,
+paginated operational rows and tenant Prometheus text. All DB aggregates are
+filtered before grouping. Claim verdicts expand only within tenant-scoped SQL;
+raw claims never enter the response. `/metrics` is a separate operator surface
+disabled without its dedicated secret. It contains global process counters
+with fixed outcome labels and no tenant identifiers. Retention is documented
+in `EVALUATION_DATA_POLICY.md`; no automatic destructive cleanup is enabled.

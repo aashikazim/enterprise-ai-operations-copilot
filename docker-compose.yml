@@ -35,6 +35,7 @@ services:
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1-mini}
       RAG_EVAL_ENABLED: ${RAG_EVAL_ENABLED:-false}
       RAG_EVAL_SAMPLE_RATE: ${RAG_EVAL_SAMPLE_RATE:-0.0}
+      MONITORING_METRICS_TOKEN: ${MONITORING_METRICS_TOKEN:-}
     depends_on:
       db:
         condition: service_healthy
