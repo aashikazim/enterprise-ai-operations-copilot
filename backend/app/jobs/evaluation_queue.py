@@ -7,18 +7,23 @@ from sqlalchemy.orm import Session
 
 from app.db.evaluation_job_model import EvaluationJob
 from app.jobs.retry_policy import next_retry_time
+from app.monitoring.tracing import traced
 
 
 def utc_now():
     return datetime.now(timezone.utc)
 
 
+@traced("db.evaluation.enqueue")
 def enqueue_evaluation(
     db: Session,
     customer_id: int,
     question: str,
     answer: str,
     evidence: list[dict],
+    *,
+    request_id: str | None = None,
+    trace_context: dict | None = None,
 ) -> EvaluationJob:
     if not question.strip() or not answer.strip():
         raise ValueError("Question and answer are required")
@@ -33,6 +38,8 @@ def enqueue_evaluation(
         evidence=evidence,
         status="pending",
         available_at=utc_now(),
+        request_id=request_id,
+        trace_context=trace_context,
     )
 
     db.add(job)
@@ -42,6 +49,7 @@ def enqueue_evaluation(
     return job
 
 
+@traced("db.evaluation.claim")
 def claim_next_job(
     db: Session,
     lease_seconds: int = 600,
@@ -97,6 +105,7 @@ def claim_next_job(
     return db.get(EvaluationJob, job_id)
 
 
+@traced("db.evaluation.complete")
 def complete_job(
     db: Session,
     job_id: str,
@@ -126,6 +135,7 @@ def complete_job(
     return True
 
 
+@traced("db.evaluation.fail")
 def fail_job(
     db: Session,
     job_id: str,

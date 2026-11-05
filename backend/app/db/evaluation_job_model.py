@@ -62,6 +62,9 @@ class EvaluationJob(Base):
         nullable=True,
     )
 
+    request_id: Mapped[str | None] = mapped_column(String(36), nullable=True, unique=True)
+    trace_context: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+
     attempts: Mapped[int] = mapped_column(
         Integer,
         default=0,

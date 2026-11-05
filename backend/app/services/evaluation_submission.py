@@ -12,6 +12,7 @@ from app.db.database import get_settings
 from app.db.models import Document, DocumentChunk
 from app.jobs.evaluation_queue import enqueue_evaluation
 from app.monitoring.evaluation_metrics import record_enqueue
+from app.monitoring.tracing import traced, current_trace_context
 
 
 def sampled(request_id: str, rate: float) -> bool:
@@ -24,6 +25,7 @@ def sampled(request_id: str, rate: float) -> bool:
     return bucket / 2**64 < rate
 
 
+@traced("db.evaluation.verify_evidence")
 def verified_evidence(db, chunks, customer_id):
     ids = [chunk.get("chunk_id") for chunk in chunks]
     if any(type(identifier) is not int for identifier in ids) or len(set(ids)) != len(ids):
@@ -58,6 +60,7 @@ def verified_evidence(db, chunks, customer_id):
     return evidence
 
 
+@traced("evaluation.enqueue")
 def submit_sampled_evaluation(db, *, question, result, chunks, customer_id, request_id):
     started = perf_counter()
     outcome = "enqueue_failed"
@@ -82,6 +85,7 @@ def submit_sampled_evaluation(db, *, question, result, chunks, customer_id, requ
                 else:
                     enqueue_evaluation(
                         evaluation_db, customer_id, question, result["answer"], evidence,
+                        request_id=request_id, trace_context=current_trace_context(),
                     )
                     outcome = "enqueued"
     except Exception:

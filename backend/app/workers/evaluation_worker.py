@@ -18,6 +18,7 @@ from app.jobs.evaluation_queue import (
     fail_job,
     expire_exhausted_jobs,
 )
+from app.monitoring.tracing import span, extract_trace_context, configure_tracing
 from app.services.faithfulness_service import (
     evaluate_faithfulness,
 )
@@ -60,31 +61,38 @@ def process_next_job(session_factory, client, evaluator=None):
         data = {
             "id": job.id, "attempts": job.attempts, "question": job.question,
             "answer": job.answer, "evidence": job.evidence,
+            "trace_context": job.trace_context, "created_at": job.created_at,
         }
 
-    started = time.perf_counter()
-    try:
-        result = evaluator(
-            question=data["question"], answer=data["answer"],
-            chunks=data["evidence"], client=client,
+    from datetime import datetime, timezone
+    with span("evaluation.worker", context=extract_trace_context(data["trace_context"]), **{
+        "job.id": data["id"], "job.attempt": data["attempts"],
+        "queue.wait_seconds": max(0, (datetime.now(timezone.utc) - data["created_at"]).total_seconds()),
+    }):
+        started = time.perf_counter()
+        try:
+            result = evaluator(
+                question=data["question"], answer=data["answer"],
+                chunks=data["evidence"], client=client,
+            )
+        except Exception:
+            with session_factory() as db:
+                saved = fail_job(db, data["id"], data["attempts"], "evaluation_failed")
+            outcome = "retry_or_failure" if saved else "stale_failure"
+        else:
+            with session_factory() as db:
+                saved = complete_job(db, data["id"], data["attempts"], result)
+            outcome = "completed" if saved else "stale_result"
+        logger.info(
+            "evaluation_job job_id=%s attempt=%s outcome=%s duration_ms=%.3f",
+            data["id"], data["attempts"], outcome,
+            (time.perf_counter() - started) * 1000,
         )
-    except Exception:
-        with session_factory() as db:
-            saved = fail_job(db, data["id"], data["attempts"], "evaluation_failed")
-        outcome = "retry_or_failure" if saved else "stale_failure"
-    else:
-        with session_factory() as db:
-            saved = complete_job(db, data["id"], data["attempts"], result)
-        outcome = "completed" if saved else "stale_result"
-    logger.info(
-        "evaluation_job job_id=%s attempt=%s outcome=%s duration_ms=%.3f",
-        data["id"], data["attempts"], outcome,
-        (time.perf_counter() - started) * 1000,
-    )
     return True
 
 
 def run_worker():
+    configure_tracing("copilot-worker")
     session_factory = make_session_factory()
     client = OpenAI()
     logger.info("Evaluation worker started")

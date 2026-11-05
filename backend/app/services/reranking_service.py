@@ -1,5 +1,6 @@
 from functools import lru_cache
 from sentence_transformers import CrossEncoder
+from app.monitoring.tracing import traced
 
 
 MODEL_NAME = "cross-encoder/ms-marco-MiniLM-L-6-v2"
@@ -10,6 +11,7 @@ def get_reranker():
     return CrossEncoder(MODEL_NAME)
 
 
+@traced("rag.reranking")
 def rerank_chunks(
     query: str,
     chunks: list[dict],

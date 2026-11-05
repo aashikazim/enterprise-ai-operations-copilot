@@ -5,6 +5,7 @@ from alembic import command
 from alembic.autogenerate import compare_metadata
 from alembic.config import Config
 from alembic.migration import MigrationContext
+from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine, inspect, text
 
 from app.db.database import Base, get_settings
@@ -37,7 +38,7 @@ def test_fresh_migrations_match_models(monkeypatch):
             command.upgrade(config, "head")
             with engine.connect() as connection:
                 assert connection.execute(text("SELECT extversion FROM pg_extension WHERE extname='vector'")).scalar()
-                assert connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "1a11a0000001"
+                assert connection.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == ScriptDirectory.from_config(config).get_current_head()
                 assert connection.execute(text(
                     "SELECT format_type(atttypid, atttypmod) FROM pg_attribute "
                     "WHERE attrelid='document_chunks'::regclass AND attname='embedding'"

@@ -4,6 +4,7 @@ from typing import Literal
 
 from openai import OpenAI
 from pydantic import BaseModel, Field
+from app.monitoring.tracing import traced
 
 FAITHFULNESS_INSTRUCTIONS = """
 You are a strict evidence-grounding evaluator.
@@ -95,6 +96,7 @@ def format_evidence(chunks: list[dict]) -> str:
     )
 
 
+@traced("llm.evaluate")
 def evaluate_faithfulness(
     question: str,
     answer: str,

@@ -3,6 +3,7 @@ from functools import lru_cache
 from openai import OpenAI
 import logging
 from app.db.database import get_settings
+from app.monitoring.tracing import traced
 
 SYSTEM_INSTRUCTIONS = """
 You are an enterprise operations assistant.
@@ -35,6 +36,7 @@ def get_openai_client() -> OpenAI:
     return OpenAI(api_key=settings.openai_api_key)
 
 
+@traced("llm.generate")
 def generate_answer(
     question: str,
     context: str,

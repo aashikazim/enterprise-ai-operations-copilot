@@ -2,6 +2,7 @@
 import logging
 import time
 from contextlib import contextmanager
+from app.monitoring.tracing import span
 
 
 logger = logging.getLogger("copilot.rag")
@@ -12,7 +13,8 @@ def measure_stage(stage: str, request_id: str):
     start = time.perf_counter()
 
     try:
-        yield
+        with span("rag." + stage, **{"request.id": request_id}):
+            yield
     finally:
         duration_ms = (
             time.perf_counter() - start

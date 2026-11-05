@@ -118,7 +118,41 @@ reset on restart. See [payload policy and metric definitions](docs/EVALUATION_DA
 Automatic payload deletion is not enabled. RAG rate/latency summaries require
 persisted metrics; an empty population returns nulls, not zero-valued claims.
 
-## Implemented Features (Days 1--12)
+## Request/worker tracing (Day 13; container smoke pending)
+
+OpenTelemetry spans cover HTTP handling, retrieval, reranking, generation,
+evidence verification, queue writes/claims, worker evaluation and completion.
+Only safe IDs, attempt/wait/status metadata are recorded; no automatic SQL
+statement, body, authorization-header, baggage or exception-text capture.
+W3C `traceparent` and an opaque request ID are stored on evaluation jobs by
+additive migration `1a13a0000001`. Existing null-context jobs remain readable.
+Apply migrations on the intended database before using the updated worker;
+the verification run applied them only to disposable test databases.
+
+Tracing is disabled by default. Enable `TRACING_ENABLED=true`; an empty
+`OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` provides local tracing without exporting.
+For optional collector/Jaeger services:
+
+```powershell
+docker compose -f docker-compose.yml -f docker-compose.tracing.yml up -d --build
+# Host-run worker/API configuration:
+$env:TRACING_ENABLED = "true"
+$env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT = "http://127.0.0.1:4318/v1/traces"
+```
+
+Jaeger UI is loopback-only at `http://127.0.0.1:16686`; in-memory traces vanish
+on container restart. OTLP export uses a bounded asynchronous batch processor;
+collector unavailability does not prevent API startup. Export credentials in
+URLs are rejected. A collector receives trace IDs, so apply operational access
+controls even though payloads are excluded.
+
+ARM64 manifests were verified for collector `0.147.0` and Jaeger `2.5.0`.
+Compose configuration validation passed, but container startup/export smoke
+is **pending Docker daemon access**: this session received permission denied
+on `/var/run/docker.sock`. End-to-end API→queue→worker correlation was verified
+with an in-memory exporter and mocked model calls, not a deployed collector.
+
+## Implemented Features (Days 1--12; Day 13 partial)
 
   -----------------------------------------------------------------------
   Area                                Implemented capability

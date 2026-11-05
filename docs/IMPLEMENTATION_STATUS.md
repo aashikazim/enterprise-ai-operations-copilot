@@ -44,7 +44,7 @@ From `backend/`:
 |---|---|
 | 11 | Completed: opt-in sampled durable evaluation; independent transaction; tenant snapshot checks; worker tests |
 | 12 | Completed: tenant-admin summaries, pagination, Prometheus text, operator counters, privacy policy |
-| 13 | Planned: sanitized tracing |
+| 13 | Partial: sanitized spans and durable propagation verified; Docker permission blocks collector smoke |
 | 14 | Planned: bounded LangGraph workflow |
 | 15 | Planned: typed tenant-authorized tools |
 | 16 | Planned: queue benchmark and scaling ADR |
@@ -115,3 +115,35 @@ provisioning remain explicit owner decisions.
   metric aggregates may be empty because live metric persistence is not wired.
   Suggested retention is policy documentation, not automated deletion.
 - Next: trace correlation across the durable worker boundary (Day 13).
+
+## Day 13 — partial; Docker runtime verification blocked, 2026-11-05
+
+- Explicit tracing in `app/monitoring/tracing.py`: manual FastAPI ASGI spans,
+  sanitized retrieval/reranking/generation/DB/worker spans. Exception text and
+  stack events disabled. Attributes allowlisted; only traceparent propagated.
+- Migration `1a13a0000001` adds nullable safe trace context and unique optional
+  request ID to evaluation jobs. Existing jobs remain compatible. New request
+  duplicates cannot create a second persisted job with the same request ID;
+  no cross-HTTP-request deduplication guarantee is claimed.
+- Worker restores context after claiming; queue wait/attempt/job metadata
+  appears under the original request trace. Tests exercise the real evaluator
+  parsing path with mocked provider responses.
+- Added SDK and HTTP exporter 1.45.1 to existing UTF-16 requirements. Existing
+  API version preserved; resolver added dependencies without replacing existing
+  packages. `pip check`: no broken requirements.
+- Added `docker-compose.tracing.yml` and `ops/otel-collector.yaml`; explicit
+  opt-in settings; loopback host ports; no collector dependency for startup.
+- `pytest tests/test_evaluation_submission.py tests/test_migrations.py -q -p no:cacheprovider --tb=short`:
+  **29 passed in 2.57s**. `pytest tests/test_tracing.py tests/test_migrations.py -q -p no:cacheprovider --tb=short`:
+  **9 passed in 0.72s**. Full regression: **124 passed in 11.67s**; no paid calls.
+- Image manifest inspection verified linux/arm64 variants of
+  `otel/opentelemetry-collector:0.147.0` and `jaegertracing/jaeger:2.5.0`.
+- Compose config validation exited successfully. Attempted isolated startup:
+  `docker compose -p copilot-tracing-check -f docker-compose.yml -f docker-compose.tracing.yml up -d --no-deps jaeger otel-collector`.
+  Failed with Docker socket permission denied, before starting services.
+- Verified request→durable queue→worker trace via in-memory exporter. No claim
+  of collector/Jaeger runtime verification, deployment, or production migration.
+- Next: restore Docker access (owner decision), run isolated collector smoke,
+  verify a synthetic trace in Jaeger, stop only test services, then complete
+  Day 13 and continue Day 14. Do not change socket permissions/group grants
+  without explicit authorization. Days 14–30 remain unimplemented.

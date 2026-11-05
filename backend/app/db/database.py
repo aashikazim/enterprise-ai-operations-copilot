@@ -30,8 +30,10 @@ class Settings(BaseSettings):
     rag_eval_enabled: bool = False
     rag_eval_sample_rate: float = Field(default=0.0, ge=0, le=1, allow_inf_nan=False)
     monitoring_metrics_token: SecretStr = SecretStr("")
+    tracing_enabled: bool = False
+    otel_exporter_otlp_traces_endpoint: str = ""
 
-    @field_validator("rag_eval_enabled", mode="before")
+    @field_validator("rag_eval_enabled", "tracing_enabled", mode="before")
     @classmethod
     def validate_eval_enabled(cls, value):
         if isinstance(value, bool):

@@ -61,3 +61,23 @@ raw claims never enter the response. `/metrics` is a separate operator surface
 disabled without its dedicated secret. It contains global process counters
 with fixed outcome labels and no tenant identifiers. Retention is documented
 in `EVALUATION_DATA_POLICY.md`; no automatic destructive cleanup is enabled.
+
+## Day 13 tracing boundary
+
+```mermaid
+flowchart LR
+    HTTP[Safe HTTP span] --> RAG[Retrieval / reranking / model spans]
+    RAG --> ENQ[Evidence / enqueue spans]
+    ENQ --> JOB[(Nullable traceparent / request UUID)]
+    JOB --> WORKER[Worker span / attempt / queue wait]
+    WORKER --> EVAL[Evaluator / completion spans]
+    HTTP -. optional async OTLP .-> Collector[Local collector]
+    WORKER -. optional async OTLP .-> Collector
+    Collector --> Jaeger[Loopback Jaeger UI / in-memory storage]
+```
+
+Incoming trace IDs are diagnostic correlation only, never tenant identity or
+authorization. Baggage/tracestate are dropped. Manual spans intentionally avoid
+automatic SQL parameters and exception text. SDK/exporter versions are pinned.
+The optional container stack is configured but runtime verification awaits
+Docker daemon permissions; in-memory end-to-end trace tests pass.
