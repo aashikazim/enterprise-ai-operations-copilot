@@ -34,9 +34,9 @@ class RAGMetric(Base):
     retrieval_ms: Mapped[float] = mapped_column(Float)
     generation_ms: Mapped[float] = mapped_column(Float)
 
-    input_tokens: Mapped[int] = mapped_column(Integer)
-    output_tokens: Mapped[int] = mapped_column(Integer)
-    estimated_cost_usd: Mapped[float] = mapped_column(Float)
+    input_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    output_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    estimated_cost_usd: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     abstained: Mapped[bool] = mapped_column(Boolean)
     citations_valid: Mapped[bool] = mapped_column(Boolean)

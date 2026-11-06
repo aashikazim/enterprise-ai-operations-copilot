@@ -29,3 +29,25 @@ def save_rag_metric(
     db.refresh(record)
 
     return record
+
+
+def record_request_metric(db, request_id, customer_id, result, latency_ms, retrieval_ms, generation_ms):
+    """Best-effort aggregates only; never commit/rollback the caller's session.
+
+    Latency excludes this persistence and async-evaluation enqueue transaction.
+    Provider wrapper currently returns text only, so usage/cost stay unknown.
+    """
+    if db is None:
+        return
+    import logging
+    from sqlalchemy.orm import sessionmaker
+    try:
+        factory = sessionmaker(bind=db.get_bind())
+        with factory.begin() as session:
+            session.add(RAGMetric(request_id=request_id, customer_id=customer_id,
+                latency_ms=latency_ms, retrieval_ms=retrieval_ms, generation_ms=generation_ms,
+                input_tokens=None, output_tokens=None, estimated_cost_usd=None,
+                abstained=result['abstained'],
+                citations_valid=result['citation_validation']['citations_valid']))
+    except Exception:
+        logging.getLogger(__name__).warning('RAG aggregate persistence failed')

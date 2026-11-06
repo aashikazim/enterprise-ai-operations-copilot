@@ -29,6 +29,7 @@ jobs:
       DATABASE_URL: postgresql+psycopg://copilot:ci-disposable-password@127.0.0.1:5432/copilot_db
       JWT_SECRET_KEY: ci-only-not-for-deployment
       OPENAI_API_KEY: ""
+      RUN_BROWSER_E2E: '1'
     defaults:
       run:
         working-directory: backend
@@ -41,6 +42,14 @@ jobs:
           python-version: '3.12'
       - run: python -m pip install --upgrade pip==26.2.0
       - run: python -m pip install -r requirements.txt
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version: '22'
+          package-manager-cache: false
+      - run: npm ci
+        working-directory: frontend
+      - run: npx playwright install --with-deps chromium
+        working-directory: frontend
       - run: python -m scripts.prepare_test_database
       - run: python -m scripts.prepare_test_database --database copilot_migration_test_db
       - run: python -m pytest tests/ -q -p no:cacheprovider --tb=short

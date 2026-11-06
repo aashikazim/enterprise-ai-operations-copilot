@@ -2,3 +2,6 @@
 .chat-layout{display:grid;grid-template-columns:230px minmax(0,1fr);gap:1.5rem}.conversation-list{align-self:start;display:grid;gap:.7rem}.conversation-list button{font-size:.8rem}.conversation-list h2{margin-bottom:0}.answer-text{white-space:pre-wrap;overflow-wrap:anywhere}.answer.card p.answer-text{color:#142d31;font-size:1rem}.citation{display:inline;padding:.1rem .35rem;font-size:.8rem;margin:0 .15rem;background:#e8f2ed;color:#145c55}.sources{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:1rem}.sources button{font-size:.75rem}.question{background:#eaf1ed}details{font-size:.8rem;padding:.7rem}summary{cursor:pointer}@media(max-width:1000px){.chat-layout{grid-template-columns:1fr}.conversation-list{display:flex;flex-wrap:wrap;align-items:center}}
 
 .check{display:flex;align-items:flex-start;gap:.7rem}.check input{width:auto;margin-top:.4rem}.review-grid{display:grid;grid-template-columns:minmax(230px,.8fr) minmax(0,1.4fr);gap:1rem}dt{font-size:.75rem;color:#60736f}dd{margin:0 0 1rem}caption{text-align:left;font-size:.8rem;color:#60736f;padding:.7rem 0}@media(max-width:900px){.review-grid{grid-template-columns:1fr}}
+
+/* Grid children must shrink before tables scroll within their own panel. */
+.workspace>main,.stack,.card{min-width:0}

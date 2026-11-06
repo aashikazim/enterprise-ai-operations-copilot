@@ -153,8 +153,9 @@ def run_conversation(db, user, identifier, question=None, *, resume=False, top_k
             value = owned(session, identifier, user_id, customer_id, lock=True)
             if value.run_token != token or value.lease_expires_at <= now():
                 raise ConversationBusy("Conversation lease lost")
+            from fastapi.encoders import jsonable_encoder
             session.add(ConversationMessage(conversation_id=identifier, role="assistant",
-                content=result["result"]["answer"], result=result))
+                content=result["result"]["answer"], result=jsonable_encoder(result)))
             value.status, value.run_token, value.lease_expires_at = "open", None, None
         return result
     except Exception:

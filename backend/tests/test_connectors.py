@@ -114,3 +114,12 @@ def test_graph_connector_identity_is_server_bound(client, user_headers, test_use
     assert response.status_code == 200 and response.json()["intent"] == "connector_read"
     constructor.assert_called_once_with(test_user.customer_id)
     adapter.read_page.assert_called_once_with("C12345678")
+
+
+def test_connector_timeout_is_bounded_and_sanitized(configured):
+    handler = Mock(side_effect=httpx.ReadTimeout('PRIVATE transport failure'))
+    adapter = connectors.SlackReadConnector(1, transport=httpx.MockTransport(handler), sleep=Mock())
+    with pytest.raises(connectors.ConnectorUnavailable) as error:
+        adapter.read_page('C12345678')
+    assert 'PRIVATE' not in str(error.value)
+    assert handler.call_count <= 2

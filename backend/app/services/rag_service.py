@@ -5,9 +5,11 @@ from app.services.hybrid_retrieval_service import hybrid_retrieve
 from app.services.reranking_service import rerank_chunks
 from app.evals.answer_quality import validate_citations
 import uuid
+from time import perf_counter
 
 from app.services.observability import measure_stage
 from app.services.evaluation_submission import submit_sampled_evaluation
+from app.monitoring.metric_repository import record_request_metric
 
 ABSTENTION_MESSAGE = (
     "I could not find sufficient information in the "
@@ -98,6 +100,7 @@ def answer_question(
     top_k: int = 5,
 ) -> dict:
     request_id = str(uuid.uuid4())
+    started = perf_counter()
     with measure_stage("retrieval", request_id):
         chunks = retrieve_rag_context(
             db=db,
@@ -105,12 +108,15 @@ def answer_question(
             customer_id=customer_id,
             top_k=top_k,
         )
+    retrieved = perf_counter()
 
     if not chunks:
         result = build_rag_result(
             answer=ABSTENTION_MESSAGE,
             chunks=[],
         )
+        record_request_metric(db, request_id, customer_id, result,
+            (perf_counter() - started) * 1000, (retrieved - started) * 1000, 0.0)
         submit_sampled_evaluation(
             db, question=question, result=result, chunks=[],
             customer_id=customer_id, request_id=request_id,
@@ -131,6 +137,10 @@ def answer_question(
         answer=answer,
         chunks=chunks,
     )
+    finished = perf_counter()
+    record_request_metric(db, request_id, customer_id, result,
+        (finished - started) * 1000, (retrieved - started) * 1000,
+        (finished - retrieved) * 1000)
     submit_sampled_evaluation(
         db, question=question, result=result, chunks=chunks,
         customer_id=customer_id, request_id=request_id,

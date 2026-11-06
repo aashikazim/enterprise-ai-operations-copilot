@@ -44,3 +44,8 @@ real JWT/user lookup, mocked RAG/model service): `/rag/ask` p50 3.725ms,
 p95 8.094ms; `/agents/run` p50 10.269ms, p95 15.076ms; both zero HTTP errors.
 These exclude socket/TLS and model/retrieval execution. Repeated BM25 p50 was
 7.643/4.540ms and p95 8.301/5.830ms, showing expected local timing variation.
+
+Day29 live aggregate persistence overhead,20independent SQL writes: p50 3.736ms,
+p95 4.770ms. The operation persisted20records; no paid provider was called.
+Recorded RAG latency excludes this write and evaluation-enqueue overhead. Actual
+client-observed duration includes both; this is not an end-to-end model benchmark.

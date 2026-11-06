@@ -343,3 +343,30 @@ sandbox DNS; network-enabled retry0vulnerabilities. Python path audit0known;
 secret scan0. One audit invocation used incompatible --disable-pip argument;
 corrected path-only command passed. Local Compose config and5HTTP smoke checks
 passed. No migration/dependency. Next: Day29 browser/API reliability journeys.
+
+## Day29 — local reliability/quality verification in final regression
+
+Real Chromium156/Playwright1.65 journey covers login/upload/RAG/citation preview,
+authenticated foreign document404, durable multi-turn tools/proposal, explicit
+approve/execute, dashboard/mobile/logout and worker completion. Model seams mocked;
+SQL/auth/graph/approvals/queue real. Fixed datetime JSONB persistence bug with
+regression. Fixed lexical dataset Recall@3/MRR1.0on2identifier cases, citation2/2,
+no-match abstention1/1; no semantic faithfulness/cost accuracy claim.
+Initial full207passed in43.85s, plus later connector-timeout target1passed.
+Follow-up closed live aggregate persistence gap via independent transactions,
+nullable unknown usage/cost migration1a29a0000001 and tenant/request fenced score
+join. Tests protect transaction/privacy/isolation;20writes p50/p95=3.736/4.770ms.
+Live metrics exposed mobile overflow; formatted numbers/scoped scrolling fixed.
+Latest metric/browser targets8passed in4.67s;17frontend tests/build passed.
+One wrongly scoped test command lacked network and a hook initially landed in
+claim rather than completion; corrected and rerun. Final complete suite pending.
+No development migration applied or paid API. Next: Day30 verified docs/demo.
+
+### Day29 final — completed local verification
+
+Final command RUN_BROWSER_E2E=1 BROWSER_EXECUTABLE_PATH=/usr/bin/google-chrome
+PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest tests/ -q -p no:cacheprovider
+--tb=short:212passed in46.30s,0failed/0skipped.17frontend tests/build passed;
+secret scan0; npm audit0known after Playwright install. Additive nullable-metric
+migration verified through fresh upgrade/downgrade chain on disposable DB only.
+No paid calls/remote deployment. Next: Day30 reproducible demo and final handoff.

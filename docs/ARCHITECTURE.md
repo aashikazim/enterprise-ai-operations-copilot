@@ -195,3 +195,11 @@ CLOUD_RUNBOOK.md defines a proposed CPU ECS API/worker, private RDS/vector,
 CloudFront/private S3, TLS ALB, Secrets Manager and sanitized CloudWatch target.
 No cloud resources, IAM grants or deployment were executed. Manual readiness
 workflow has no write/OIDC permissions; actual GitHub reviewers need owner setup.
+
+## Day29 verified browser boundary
+
+Chromium → local Vite proxy → FastAPI per-request sessions → isolated PostgreSQL,
+LangGraph checkpoints, proposal approvals and real evaluation queue/worker. Model
+seams are mocked. Persisted conversation results are converted to JSON-compatible
+values (including approval timestamps) before JSONB storage. No live model score
+or cloud deployment follows from this integration check.

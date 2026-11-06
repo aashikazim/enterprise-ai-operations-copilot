@@ -42,3 +42,9 @@ storage access. Application deletion would not erase provider copies/backups.
 - Process-wide enqueue counters reset at restart and are not a durable audit
   trail. Labels have fixed outcomes/statuses; no tenant, prompt or request-ID
   label is permitted. Prometheus collection/storage is not deployed here.
+
+Live aggregate metrics contain opaque request/tenant IDs, timings and answer flags;
+unknown usage/cost are null. No raw question/answer/evidence is copied there.
+Completed evaluations update aggregate faithfulness only for the same tenant and
+request. Aggregate-write failure does not commit/rollback request work or change
+the returned answer. Durations exclude metric persistence/enqueue overhead.

@@ -109,3 +109,17 @@ def test_conversation_auth_validation(client, user_headers):
     assert client.post("/conversations").status_code == 401
     assert client.post("/conversations/bad/messages", headers=user_headers,
                        json={"question": "x", "customer_id": 3}).status_code == 422
+
+
+def test_records_then_approval_checkpoint_roundtrip(db, test_user, test_customer):
+    from app.db.models import Ticket
+    from app.db.conversation_models import Conversation
+    from app.services.conversation_service import run_conversation
+    ticket = Ticket(customer_id=test_customer.id, subject='Synthetic', description='Synthetic')
+    conversation = Conversation(customer_id=test_customer.id, user_id=test_user.id)
+    db.add_all([ticket, conversation])
+    db.commit()
+    identifier = conversation.id
+    assert run_conversation(db, test_user, identifier, 'list tickets')['intent'] == 'records'
+    result = run_conversation(db, test_user, identifier, f'close ticket {ticket.id}')
+    assert result['intent'] == 'approval_required' and result['approvals'][0]['status'] == 'requested'

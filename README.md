@@ -806,3 +806,7 @@ separate project and ports for verification; preserve existing database volumes.
 [Cloud preparation](docs/CLOUD_RUNBOOK.md) defines an unexecuted AWS staging
 runbook and manual readiness gate. No cloud resources or deployment are claimed.
 Offline CI is configured; hosted execution is pending an authorized push.
+
+[Verification guide](docs/VERIFICATION.md): opt-in real Chromium journey over
+Vite/FastAPI/PostgreSQL, synthetic quality fixtures, fault matrix and explicit
+model-mocking limits. CI enables the browser test; local backends can opt in.

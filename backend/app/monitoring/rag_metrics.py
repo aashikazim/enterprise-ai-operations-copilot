@@ -11,9 +11,9 @@ class RAGRequestMetric:
     latency_ms: float
     retrieval_ms: float
     generation_ms: float
-    input_tokens: int
-    output_tokens: int
-    estimated_cost_usd: float
+    input_tokens: int | None
+    output_tokens: int | None
+    estimated_cost_usd: float | None
     abstained: bool
     citations_valid: bool
     faithfulness_score: float | None = None
@@ -57,8 +57,8 @@ def summarize_metrics(
             if faithfulness_values
             else None
         ),
-        "total_estimated_cost_usd": sum(
-            item.estimated_cost_usd
-            for item in metrics
+        "total_estimated_cost_usd": (
+            sum(item.estimated_cost_usd for item in metrics)
+            if all(item.estimated_cost_usd is not None for item in metrics) else None
         ),
     }

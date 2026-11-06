@@ -134,6 +134,16 @@ def complete_job(
         job.lease_expires_at = None
         job.last_error = None
 
+        # Link only to the same tenant/request, inside the fenced completion.
+        # Invalid/unavailable evaluator scores never become dashboard numbers.
+        score = result.get("faithfulness_score")
+        if job.request_id and type(score) in (int, float) and 0 <= score <= 1:
+            from app.db.rag_metric_model import RAGMetric
+            db.execute(update(RAGMetric).where(
+                RAGMetric.customer_id == job.customer_id,
+                RAGMetric.request_id == job.request_id,
+            ).values(faithfulness_score=float(score)))
+
     return True
 
 
