@@ -775,3 +775,12 @@ records, review Day12 quality/queue summaries and failed evaluations, and manual
 add a text document. Backend /admin/records/{documents|tickets|users} checks
 role/tenant and omits hashes/bodies. Null quality metrics mean not measured.
 Regular users cannot access these APIs even if they navigate to /admin directly.
+
+## Actions and history UI (Day24)
+
+The Actions & history view shows owner-scoped execution history and authorized
+proposal targets, expected state, effects, expiry and audit events. Admins approve
+or reject; executing an approved change needs a separate fresh confirmation.
+Regular users can inspect their own proposals but cannot execute them. Expired
+items are disabled client-side and always checked server-side. Errors do not
+retry writes automatically. Displayed timestamps are recorded turn/audit times.

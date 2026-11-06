@@ -159,3 +159,10 @@ Admin React view → existing Day12 aggregates + new tenant-scoped metadata
 queries. Server require_admin, bounded pagination and explicit column selection
 are the security boundary; hidden links are only convenience. Text ingestion
 reuses the existing authorized endpoint and local embedding pipeline.
+
+## Day24 approval UI
+
+Browser explicitly selects proposal → fresh authorized detail → confirmation →
+admin approval → new confirmation → separate execution. Client guards reduce
+double clicks; backend Day18 transaction/fencing is authoritative. Conversation
+steps/results use owner-scoped persisted turns and real turn timestamps.

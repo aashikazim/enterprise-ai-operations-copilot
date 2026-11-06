@@ -39,10 +39,13 @@ def create(data: ProposalRequest, db: Session = Depends(get_db), user=Depends(ge
 
 @router.get("")
 def listing(limit: int = Query(20, ge=1, le=100), offset: int = Query(0, ge=0, le=100000),
+            status: Literal["requested", "approved", "rejected", "expired", "executed", "failed"] | None = None,
             db: Session = Depends(get_db), user=Depends(get_current_user)):
     query = select(Approval).where(Approval.customer_id == user.customer_id)
     if user.role != "admin":
         query = query.where(Approval.requested_by == user.id)
+    if status:
+        query = query.where(Approval.status == status)
     return {"items": [view(v) for v in db.scalars(query.order_by(Approval.created_at.desc(), Approval.id).limit(limit).offset(offset))]}
 
 

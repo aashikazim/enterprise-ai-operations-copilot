@@ -55,7 +55,7 @@ From `backend/`:
 | 21 | Completed: typed React shell, memory-only JWT login, proxy and interaction tests |
 | 22 | Completed: conversations, composer, mode distinction, safe steps and source previews |
 | 23 | Completed: authorized metadata/quality dashboard with filters and pagination |
-| 24 | Planned: execution/approval UI |
+| 24 | Completed: persisted execution/audit history and explicit approval/execute UI |
 | 25 | Planned: security review and negative tests |
 | 26 | Planned: measured optimization |
 | 27 | Planned: reproducible full-stack containers |
@@ -271,3 +271,14 @@ shows null metrics honestly, failed jobs, filters and explicit text ingestion.
 2backend targets passed in0.94s; full191passed in36.84s;12frontend tests/build
 passed. Fixed an ambiguous empty-state test query. No dependency/migration.
 Next: Day24 reviewable execution and human-approval UI.
+
+## Day24 — completed locally, 2026-11-05
+
+Actions/history UI displays persisted steps/results and actual turn/audit times;
+explicit admin approval and separate fresh execution confirmation. Ref/busy
+guards, stale-detail cancellation, expiry display and no automatic write retry.
+Added scoped approval status filter.12backend targets passed in5.09s; full192
+passed in37.62s;17frontend tests/build passed. No dependency/migration.
+Next: Day25 security hardening. Preparation npm audit found6affected packages
+(1moderate,3high,2critical); recommended same-major upgrades will be applied
+and verified before final security/deployment claims.
