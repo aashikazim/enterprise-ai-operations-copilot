@@ -180,7 +180,17 @@ Agent reads such as `list tickets`, `show ticket 1`, `list documents` and
 `show customer` return structured authorized records. Record text never selects
 a tool. Other questions continue through existing RAG; writes await approvals.
 
-## Implemented Features (Days 1--15)
+## Worker scaling and recovery (Day 16)
+
+The PostgreSQL queue is retained after a synthetic local concurrency assessment;
+see [ADR001](docs/adr/001-postgresql-evaluation-queue.md). Set
+`EVALUATION_WORKER_CONCURRENCY` to1–8 (default1) and
+`EVALUATION_LEASE_SECONDS` to30–3600 (default600). Independent worker threads
+renew active leases and fence stale/expired writes. SIGTERM/SIGINT stops new
+claims and drains in-flight work. Malformed/auth-denied jobs are terminal;
+transient failures retain capped retries. Delivery remains at-least-once.
+
+## Implemented Features (Days 1--16)
 
   -----------------------------------------------------------------------
   Area                                Implemented capability
@@ -291,7 +301,7 @@ requests:
     tenant isolation.
 
 **Current limitations:** This is a database-backed polling queue rather
-than a dedicated broker. Lease renewal, operational alerting,
+than a dedicated broker. Operational alerting,
 and fully containerized worker deployment remain
 future hardening work.
 

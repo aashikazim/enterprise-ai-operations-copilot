@@ -174,7 +174,7 @@ def test_worker_retry_and_expired_attempt_fencing(db, test_customer, evidence, e
     submission.submit_sampled_evaluation(db, question="Synthetic", result=result, chunks=evidence,
                                         customer_id=test_customer.id, request_id="opaque-id")
     factory = sessionmaker(bind=db.get_bind(), expire_on_commit=False)
-    broken = Mock(side_effect=ValueError("Never persist this private error"))
+    broken = Mock(side_effect=RuntimeError("Never persist this private error"))
     assert process_next_job(factory, None, broken)
     job = db.scalar(select(EvaluationJob))
     assert job.status == "pending" and job.attempts == 1

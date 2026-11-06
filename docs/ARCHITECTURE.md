@@ -102,3 +102,11 @@ caller tenant fields. Statement timeout is local to its transaction. Logs use
 only capability name/outcome/duration. Unknown writes return404; foreign record
 IDs are indistinguishable from missing records. Model/content cannot choose
 arbitrary code or modify server authorization.
+
+## Day16 worker scaling
+
+One PostgreSQL queue; configurable independent consumers and heartbeat sessions.
+Every completion/failure/renewal is fenced by job, attempt, running status and
+lease validity. No session crosses thread boundaries. SIGTERM/SIGINT stops new
+claims while existing work drains. ADR001 records actual local measurements
+and why a second queue is not justified.

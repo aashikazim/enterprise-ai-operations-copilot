@@ -123,6 +123,8 @@ def complete_job(
             job is None
             or job.status != "running"
             or job.attempts != expected_attempt
+            or job.lease_expires_at is None
+            or job.lease_expires_at <= utc_now()
         ):
             return False
 
@@ -141,6 +143,8 @@ def fail_job(
     job_id: str,
     expected_attempt: int,
     error: str,
+    *,
+    permanent: bool = False,
 ) -> bool:
     with db.begin():
         job = db.execute(
@@ -153,13 +157,15 @@ def fail_job(
             job is None
             or job.status != "running"
             or job.attempts != expected_attempt
+            or job.lease_expires_at is None
+            or job.lease_expires_at <= utc_now()
         ):
             return False
 
         job.last_error = error[:2000]
         job.lease_expires_at = None
 
-        if job.attempts >= job.max_attempts:
+        if permanent or job.attempts >= job.max_attempts:
             job.status = "failed"
             job.completed_at = utc_now()
         else:
@@ -169,6 +175,21 @@ def fail_job(
             )
 
     return True
+
+
+@traced("db.evaluation.renew")
+def renew_lease(db: Session, job_id: str, expected_attempt: int, lease_seconds: int = 600) -> bool:
+    if not 0 < lease_seconds <= 3600:
+        raise ValueError("Lease must be between 1 and 3600 seconds")
+    now = utc_now()
+    with db.begin():
+        result = db.execute(update(EvaluationJob).where(
+            EvaluationJob.id == job_id,
+            EvaluationJob.status == "running",
+            EvaluationJob.attempts == expected_attempt,
+            EvaluationJob.lease_expires_at > now,
+        ).values(lease_expires_at=now + timedelta(seconds=lease_seconds)))
+        return result.rowcount == 1
 
 
 

@@ -47,7 +47,7 @@ From `backend/`:
 | 13 | Completed: trace propagation, privacy tests, real ARM64 collector/Jaeger smoke |
 | 14 | Completed: authenticated bounded read-only LangGraph reusing RAG |
 | 15 | Completed: typed read-only record tools, server authorization and bounded queries |
-| 16 | Planned: queue benchmark and scaling ADR |
+| 16 | Completed: measured PostgreSQL scaling ADR, concurrency, renewal and graceful shutdown |
 | 17 | Planned: durable conversations/checkpoints |
 | 18 | Planned: approval state machine |
 | 19 | Planned: bounded coordination assessment |
@@ -180,3 +180,12 @@ and sanitized errors/audit logs. No migration/dependency. Targeted command
 20passed in4.41s. Full suite:144passed in15.88s. Initial Mock context-manager
 test error fixed with MagicMock. Paid calls mocked, no external action/push.
 Next: Day16 measured queue scalability decision and worker recovery improvements.
+
+## Day16 — completed, 2026-11-05
+
+Retained PostgreSQL after the40-job/1and4worker synthetic measurements in ADR001.
+Added configurable1–8consumers, separate lease-renewal sessions, stale/expired
+write fencing, poison-job classification and graceful signal drain. No new
+dependency/migration. Targeted34passed in5.01s; full baseline regression
+command:150passed in18.76s. Models mocked. Real production contention/throughput
+unmeasured; no exactly-once inference claim. Next: Day17 durable conversations.
