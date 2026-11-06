@@ -176,7 +176,7 @@ Added tool_service.py, tool API/catalog and deterministic record-read graph
 routing. Four read tools; no write capability. Strict argument models, tenant
 filters, role/user recheck, independent transaction, output caps, SQL timeout
 and sanitized errors/audit logs. No migration/dependency. Targeted command
-`pytest tests/test_tools.py tests/test_agents.py -q -p no:cacheprovider --tb=short`: 
+`pytest tests/test_tools.py tests/test_agents.py -q -p no:cacheprovider --tb=short`:
 20passed in4.41s. Full suite:144passed in15.88s. Initial Mock context-manager
 test error fixed with MagicMock. Paid calls mocked, no external action/push.
 Next: Day16 measured queue scalability decision and worker recovery improvements.
