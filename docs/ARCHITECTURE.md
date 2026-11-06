@@ -138,3 +138,10 @@ channel allowlist → first-party HTTPS history endpoint. No arbitrary outbound
 URL, redirects, proxy inheritance, message posting or raw-error logging. Standalone
 reads are not persisted; conversation tool results can enter owner checkpoints.
 Live sandbox scope/account verification remains pending.
+
+## Day21 browser boundary
+
+React/TypeScript → same-origin /api proxy → existing JWT FastAPI. Token held
+in memory, no persistent browser storage/cookie credential flow. Browser role
+navigation is convenience only; API enforces identity/role/tenant. /auth/me is
+additive and omits password hashes. No Sites hosting/account is registered.

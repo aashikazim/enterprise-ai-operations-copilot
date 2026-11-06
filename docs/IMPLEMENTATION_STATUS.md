@@ -52,7 +52,7 @@ From `backend/`:
 | 18 | Completed: durable human-approved ticket status changes with fenced execution |
 | 19 | Completed assessment: no demonstrated policy gain; simpler production routing retained |
 | 20 | Partial: tenant-bound read-only Slack adapter tested offline; live sandbox credentials pending |
-| 21 | Planned: React/TypeScript shell |
+| 21 | Completed: typed React shell, memory-only JWT login, proxy and interaction tests |
 | 22 | Planned: chat/citations |
 | 23 | Planned: admin dashboard |
 | 24 | Planned: execution/approval UI |
@@ -239,3 +239,16 @@ or migration. No live network request/paid call. Generic Slack/Jira sandbox
 credentials were absent; tenant sandbox mapping is default-empty. Live verification
 requires owner configuration and remains explicitly pending. Continue independent
 frontend work without changing these claims or enabling a connector automatically.
+
+## Day21 — completed locally, 2026-11-05
+
+Added frontend/React19+TypeScript5.9+Vite7, React Router, typed client, protected
+shell, responsive accessible login and memory-only JWT auth. Additive/auth/me
+uses existing active-user dependency. No CORS widening/cookies/browser storage.
+Optional Docker dev override and local setup docs; no hosting or dev-container
+runtime claim. Node22.23.4/npm10.9.9 verified. npm install added166packages.
+`npm test -- --reporter=dot`:4passed. `npm run build`:TypeScript+Vite passed.
+Backend identity target1passed in0.33s; full188passed in35.42s including migrations.
+No backend dependency/migration/paid calls. Sites local-only skill workflow used.
+Next: Day22 conversations, grounded answers and citations. Day20 live Slack
+verification remains pending at the owner's explicit direction.

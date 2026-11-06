@@ -750,3 +750,11 @@ feedback are welcome.
 *Built to explore the engineering required to move enterprise AI from a
 promising prototype toward a reliable, measurable, multi-tenant
 product.*
+
+## Local frontend (Day21 foundation)
+
+From frontend/: `npm ci`, `npm test`, `npm run build`, then `npm run dev`.
+Node>=22.12; Vite proxies /api requests to the backend on8000. Existing
+invitation-only JWT users can log in. Tokens stay in memory; reload requires
+re-login. No hosted deployment/account provisioning. See frontend/README.md
+for PowerShell, optional Docker dev and security limits.

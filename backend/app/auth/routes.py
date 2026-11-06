@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.db.database import get_db
 from app.db.models import Customer, User
+from app.auth.dependencies import get_current_user
 from app.auth.security import (
     hash_password,
     verify_password,
@@ -28,6 +29,11 @@ class UserResponse(BaseModel):
     email: str
     role: str
     customer_id: int
+
+
+@router.get("/me", response_model=UserResponse)
+def current_identity(user: User = Depends(get_current_user)):
+    return UserResponse(id=user.id, email=user.email, role=user.role, customer_id=user.customer_id)
 
 
 # DISABLED: Public registration allows arbitrary customer_id selection.
