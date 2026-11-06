@@ -15,6 +15,7 @@ from app.api.rag import router as rag_router
 from app.api.evaluation_jobs import router as evaluation_job_router
 from app.api.monitoring import router as monitoring_router
 from app.api.agents import router as agents_router
+from app.api.conversations import router as conversations_router
 from app.monitoring.tracing import TracingMiddleware
 
 
@@ -40,6 +41,7 @@ app.include_router(rag_router)
 app.include_router(evaluation_job_router)
 app.include_router(monitoring_router)
 app.include_router(agents_router)
+app.include_router(conversations_router)
 
 @app.get("/")
 def root():

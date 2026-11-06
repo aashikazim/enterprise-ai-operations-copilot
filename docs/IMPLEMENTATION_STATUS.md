@@ -48,7 +48,7 @@ From `backend/`:
 | 14 | Completed: authenticated bounded read-only LangGraph reusing RAG |
 | 15 | Completed: typed read-only record tools, server authorization and bounded queries |
 | 16 | Completed: measured PostgreSQL scaling ADR, concurrency, renewal and graceful shutdown |
-| 17 | Planned: durable conversations/checkpoints |
+| 17 | Completed: owner/tenant-scoped conversations and durable fenced graph checkpoints |
 | 18 | Planned: approval state machine |
 | 19 | Planned: bounded coordination assessment |
 | 20 | Planned: sandbox connector; live verification requires credentials |
@@ -189,3 +189,15 @@ write fencing, poison-job classification and graceful signal drain. No new
 dependency/migration. Targeted34passed in5.01s; full baseline regression
 command:150passed in18.76s. Models mocked. Real production contention/throughput
 unmeasured; no exactly-once inference claim. Next: Day17 durable conversations.
+
+## Day17 — completed, 2026-11-05
+
+Added conversation API/lifecycle and PostgreSQL BaseCheckpointSaver via existing
+SQLAlchemy; four additive tables in migration1a17a0000001. Owner+tenant+active
+user/run-token checks, short locks, explicit interrupted-run resume, bounded
+untrusted history, logical expiry and idle-owner delete cascade. No dependency.
+Initial checkpoint ordering defect fixed with separate pending-write storage;
+delete conflict locks moved to an independent transaction. Stopped overlapping
+test processes and reran serially. Reset only approved disposable migration DB
+after prototype schema drift. Targeted7passed in2.74s; full regression156passed in26.31s, including migrations.
+No development migration or paid model call. Next: Day18 human approvals.

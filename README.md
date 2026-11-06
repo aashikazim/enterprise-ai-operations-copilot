@@ -190,7 +190,26 @@ renew active leases and fence stale/expired writes. SIGTERM/SIGINT stops new
 claims and drains in-flight work. Malformed/auth-denied jobs are terminal;
 transient failures retain capped retries. Delivery remains at-least-once.
 
-## Implemented Features (Days 1--16)
+## Durable conversations (Day 17)
+
+`POST /conversations` creates a30-day owner/tenant-scoped thread. List/get use
+`GET /conversations` and `GET /conversations/{id}` with bounded pagination.
+`POST /conversations/{id}/messages` accepts the agent question/top_k schema;
+`POST /conversations/{id}/resume` explicitly retries an interrupted read-only
+run from its stored graph checkpoint. A new graph instance uses PostgreSQL
+checkpoints after restart. No automatic model resubmission occurs. An explicit
+resume can repeat a model request if the earlier outcome was uncertain.
+
+A120-second run lease and token fence serialize each conversation. Checkpoint
+reads/writes require current owner, tenant, active identity and run token.
+History uses at most10messages/4000UTF-8bytes, marked untrusted; this conservatively
+bounds history tokens, not total provider input. User input/evidence remain
+separately bounded by existing contracts. `DELETE /conversations/{id}` explicitly
+removes only the owner's idle thread/messages/checkpoints. Expiry blocks access;
+automatic physical cleanup is not enabled. Migration `1a17a0000001` is additive;
+apply it before using these routes. No development migration was applied by tests.
+
+## Implemented Features (Days 1--17)
 
   -----------------------------------------------------------------------
   Area                                Implemented capability

@@ -110,3 +110,13 @@ Every completion/failure/renewal is fenced by job, attempt, running status and
 lease validity. No session crosses thread boundaries. SIGTERM/SIGINT stops new
 claims while existing work drains. ADR001 records actual local measurements
 and why a second queue is not justified.
+
+## Day17 conversation/checkpoint boundary
+
+Authenticated owner + tenant → conversation API →120s fenced run lease →
+LangGraph BaseCheckpointSaver implemented over SQLAlchemy/PostgreSQL →
+existing agent graph. Separate checkpoint/pending-write tables accommodate
+LangGraph background write ordering. Each transaction locks/validates the
+conversation before state access; stale run tokens cannot commit newer state.
+No pickle fallback. State can contain private content; no payload tracing.
+Logical expiry30days; owner DELETE cascades only idle conversation data.
