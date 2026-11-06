@@ -32,7 +32,7 @@ def retrieve_chunks(
             DocumentChunk.customer_id == customer_id,
             Document.customer_id == customer_id,
         )
-        .order_by(distance)
+        .order_by(distance, DocumentChunk.id)
         .limit(top_k)
     )
 

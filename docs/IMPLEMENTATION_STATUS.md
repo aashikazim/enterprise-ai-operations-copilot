@@ -297,3 +297,13 @@ on aarch64. Same-version official wheel reinstall confirmed the issue remains;
 PyTorch2.14.1+cu130 import/CPU tensor sum8/CUDA detection passed. Do not report
 pip check clean. No schema/development data changes. Next: Day26 measured
 retrieval/request/queue baselines and one bounded opt-in optimization.
+
+## Day26 — completed local optimization, 2026-11-05
+
+Bounded default-off BM25 index cache, fresh authorized corpus reads and exact
+content invalidation; deterministic dense tie order. PERFORMANCE.md provides
+reproducible SQL/retrieval/queue/role and mocked HTTP measurements, without live
+model cost/quality claims. Initial benchmark target10passed in5.09s; full201
+passed in40.19s. Added HTTP orchestration target afterward:3passed in1.89s
+(202 tests now collected). No migrations/dependencies. APIs unchanged. Paid
+models mocked. Next: Day27 isolated reproducible Compose deployment verification.

@@ -794,3 +794,7 @@ Run `python backend/scripts/check_secrets.py`, frontend `npm audit`, tests and
 build. The local Python audit used an isolated pip-audit tool environment.
 Current audits reported0known vulnerabilities after fixes; that is a snapshot,
 not a security certification. See docs/SECURITY.md for controls and residual risks.
+
+BM25 index caching is optional and disabled by default. See
+[performance measurements and retention tradeoffs](docs/PERFORMANCE.md) for
+reproducible synthetic benchmarks and `RAG_BM25_CACHE_ENABLED`.

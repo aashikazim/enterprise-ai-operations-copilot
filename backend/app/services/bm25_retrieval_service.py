@@ -2,18 +2,39 @@
 import re
 from collections import Counter
 from math import log1p
+from functools import lru_cache
 
 from rank_bm25 import BM25Okapi
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.models import Document, DocumentChunk
+from app.db.database import get_settings
 
 
 
 def tokenize(text: str) -> list[str]:
     """Normalize text while preserving identifiers such as ERR_AUTH_403."""
     return re.findall(r"[a-z0-9_]+", text.lower())
+
+
+def _build_index(customer_id: int, corpus: tuple[str, ...]):
+    tokens = [tokenize(content) for content in corpus]
+    if not any(tokens):
+        return None
+    index = BM25Okapi(tokens)
+    frequencies = Counter(token for row in tokens for token in set(row))
+    index.idf = {
+        token: log1p((len(corpus) - count + 0.5) / (count + 0.5))
+        for token, count in frequencies.items()
+    }
+    return index
+
+
+# Default-off: retains raw corpus text in process memory until eviction/restart.
+# Exact content keys invalidate edits/deletions; tenant identity prevents sharing.
+# Eight entries, each capped at 250k characters. DB authorization is never cached.
+_cached_index = lru_cache(maxsize=8)(_build_index)
 
 
 def bm25_search(
@@ -55,23 +76,12 @@ def bm25_search(
     if not rows:
         return []
 
-    tokenized_corpus = [
-        tokenize(chunk.content)
-        for chunk, _ in rows
-    ]
-
-    if not any(tokenized_corpus):
+    corpus = tuple(chunk.content for chunk, _ in rows)
+    use_cache = get_settings().rag_bm25_cache_enabled and sum(map(len, corpus)) <= 250_000
+    build = _cached_index if use_cache else _build_index
+    bm25 = build(customer_id, corpus)
+    if bm25 is None:
         return []
-
-    bm25 = BM25Okapi(tokenized_corpus)
-
-    document_frequencies = Counter(
-        token for tokens in tokenized_corpus for token in set(tokens)
-    )
-    bm25.idf = {
-        token: log1p((len(rows) - frequency + 0.5) / (frequency + 0.5))
-        for token, frequency in document_frequencies.items()
-    }
 
     scores = bm25.get_scores(query_tokens)
 
