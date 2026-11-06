@@ -1,0 +1,23 @@
+name: Manual release readiness (no cloud deployment)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  review:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    # Owner must configure required reviewers and restrict this environment to main.
+    environment: cloud-staging
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Require owner-configured environment protection
+        env:
+          REVIEW_ENABLED: ${{ vars.CLOUD_RELEASE_REVIEW_ENABLED }}
+        run: test "$REVIEW_ENABLED" = true
+      - run: docker compose --env-file .env.example -f docker-compose.yml -f docker-compose.deploy.yml config --quiet
+      - name: Record readiness scope
+        run: echo 'Configuration checked. No AWS credentials, OIDC grants, infrastructure apply, or deployment performed.' >> "$GITHUB_STEP_SUMMARY"

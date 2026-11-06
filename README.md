@@ -802,3 +802,7 @@ reproducible synthetic benchmarks and `RAG_BM25_CACHE_ENABLED`.
 The additive [deployment guide](docs/DEPLOYMENT.md) covers the production frontend
 proxy, one-shot migrations, API, PostgreSQL and worker Compose services. Use a
 separate project and ports for verification; preserve existing database volumes.
+
+[Cloud preparation](docs/CLOUD_RUNBOOK.md) defines an unexecuted AWS staging
+runbook and manual readiness gate. No cloud resources or deployment are claimed.
+Offline CI is configured; hosted execution is pending an authorized push.

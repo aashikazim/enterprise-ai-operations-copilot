@@ -328,3 +328,18 @@ passed in3.48s; final backend204passed in39.98s;17frontend tests/build passed.
 No new migration/package; Python base now3.12matching host. No live model/cloud
 verification or OS-layer scan. Commit follows; no push. Next: Day28 cloud runbook
 and CI, with cloud execution pending owner credentials/cost approval.
+
+## Day28 — preparation completed; cloud execution pending approval
+
+Added offline CI with disposable PG/vector tests, frontend build/tests, secret/
+advisory scans and Compose validation. Official actions v7 refs resolved and
+pinned; workflows parse with read-only permissions/immutable-ref checks. Manual
+readiness job uses cloud-staging environment; reviewer settings are not verified
+and require owner configuration. CLOUD_RUNBOOK.md specifies architecture, budget,
+TLS/secrets/network, migration, smoke and rollback gates. No IaC apply/resources,
+AWS credentials/cost approval, cloud deploy, OIDC grant or push/hosted CI run.
+Backend204passed in40.92s;17frontend tests/build passed. Npm audit initially failed
+sandbox DNS; network-enabled retry0vulnerabilities. Python path audit0known;
+secret scan0. One audit invocation used incompatible --disable-pip argument;
+corrected path-only command passed. Local Compose config and5HTTP smoke checks
+passed. No migration/dependency. Next: Day29 browser/API reliability journeys.

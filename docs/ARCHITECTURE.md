@@ -188,3 +188,10 @@ and worker. Unprivileged Nginx serves React and proxies same-origin /api to API.
 Separate persistent DB/model volumes, loopback local ports, resource limits and
 graceful shutdown. Cloud TLS/network/secret-manager boundaries remain a runbook,
 not an executed deployment. Health checks do not prove LLM availability.
+
+## Day28 proposed cloud boundary — unexecuted
+
+CLOUD_RUNBOOK.md defines a proposed CPU ECS API/worker, private RDS/vector,
+CloudFront/private S3, TLS ALB, Secrets Manager and sanitized CloudWatch target.
+No cloud resources, IAM grants or deployment were executed. Manual readiness
+workflow has no write/OIDC permissions; actual GitHub reviewers need owner setup.
