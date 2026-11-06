@@ -53,7 +53,7 @@ From `backend/`:
 | 19 | Completed assessment: no demonstrated policy gain; simpler production routing retained |
 | 20 | Partial: tenant-bound read-only Slack adapter tested offline; live sandbox credentials pending |
 | 21 | Completed: typed React shell, memory-only JWT login, proxy and interaction tests |
-| 22 | Planned: chat/citations |
+| 22 | Completed: conversations, composer, mode distinction, safe steps and source previews |
 | 23 | Planned: admin dashboard |
 | 24 | Planned: execution/approval UI |
 | 25 | Planned: security review and negative tests |
@@ -252,3 +252,13 @@ Backend identity target1passed in0.33s; full188passed in35.42s including migrati
 No backend dependency/migration/paid calls. Sites local-only skill workflow used.
 Next: Day22 conversations, grounded answers and citations. Day20 live Slack
 verification remains pending at the owner's explicit direction.
+
+## Day22 — completed locally, 2026-11-05
+
+Conversation/knowledge UI with typed results, citations/authorized source preview,
+abstention/errors, explicit resume and honest stop-waiting semantics. New preview
+GET checks both tenant owners and caps returned content. No streaming/auto retry.
+8frontend tests and build passed; source target1passed in0.38s; full backend
+189passed in36.88s. No dependency/migration. Paid APIs mocked. Exact frontend
+commands: npm --prefix frontend test -- --reporter=dot; npm --prefix frontend run build.
+Next: Day23 admin/quality views backed by tenant-authorized APIs.

@@ -758,3 +758,12 @@ Node>=22.12; Vite proxies /api requests to the backend on8000. Existing
 invitation-only JWT users can log in. Tokens stay in memory; reload requires
 re-login. No hosted deployment/account provisioning. See frontend/README.md
 for PowerShell, optional Docker dev and security limits.
+
+## Conversation UI (Day22)
+
+The Conversations view supports durable owner-scoped threads and direct knowledge
+mode. Inspect source buttons to retrieve a fresh tenant-authorized chunk preview.
+Citation-number checks do not prove claim support. Model failures/abstention are
+explicit; no streaming or auto retry. Stop waiting cancels only the browser wait;
+refresh/inspect before retrying. Saved steps/tool results and approval proposals
+are shown without exposing raw server errors.

@@ -70,6 +70,20 @@ class KnowledgeSearchRequest(BaseModel):
     top_k: int = Field(default=5, ge=1, le=20)
 
 
+@router.get("/documents/{document_id}/chunks/{chunk_index}")
+def source_preview(document_id: int, chunk_index: int,
+                   db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    row = db.execute(select(DocumentChunk, Document.title).join(Document, Document.id == DocumentChunk.document_id)
+        .where(Document.id == document_id, DocumentChunk.chunk_index == chunk_index,
+               Document.customer_id == user.customer_id, DocumentChunk.customer_id == user.customer_id)
+        .limit(1)).first()
+    if row is None:
+        raise HTTPException(404, "Source not found")
+    chunk, title = row
+    return {"document_id": document_id, "chunk_index": chunk_index, "title": title,
+            "content": chunk.content[:8000], "truncated": len(chunk.content) > 8000}
+
+
 @router.post("/search")
 def search_knowledge(
     data: KnowledgeSearchRequest,

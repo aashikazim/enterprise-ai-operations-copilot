@@ -22,5 +22,5 @@ export class ApiClient {
     try { return await this.request<User>('/auth/me') }
     catch (error) { this.setToken(null); throw error }
   }
-  json<T>(path: string, body: unknown) { return this.request<T>(path, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)}) }
+  json<T>(path: string, body: unknown, signal?: AbortSignal) { return this.request<T>(path, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body), signal}) }
 }

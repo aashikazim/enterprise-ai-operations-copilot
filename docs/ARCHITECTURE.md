@@ -145,3 +145,10 @@ React/TypeScript → same-origin /api proxy → existing JWT FastAPI. Token held
 in memory, no persistent browser storage/cookie credential flow. Browser role
 navigation is convenience only; API enforces identity/role/tenant. /auth/me is
 additive and omits password hashes. No Sites hosting/account is registered.
+
+## Day22 source boundary
+
+Browser answer/source metadata → separate authorized document/chunk preview read.
+Both tenant owners must match current user; source numbers alone grant no access.
+React renders content as text and cancels stale previews. Browser abort is not
+server/model cancellation; no automatic resubmission or streaming is implemented.
