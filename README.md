@@ -153,7 +153,21 @@ trace ID from Jaeger, then the isolated test services were stopped. End-to-end
 API→queue→worker correlation also passed with an in-memory exporter and mocked
 model calls. This is local verification, not a hosted deployment.
 
-## Implemented Features (Days 1--13)
+## Read-only agent (Day 14)
+
+`POST /agents/run` accepts `{"question":"What is our MFA policy?","top_k":5}`
+with the existing Bearer JWT. The response includes intent, safe node statuses,
+an opaque request ID and the existing RAG result. A typed LangGraph classifies
+then invokes existing RAG or refuses writes. There is no autonomous tool write.
+Tenant identity is captured from auth and checked at node boundaries; caller
+tenant fields are rejected. The graph is acyclic with recursion limit 6 and a
+45-second cooperative deadline checked between nodes. Model HTTP requests have
+a 30-second timeout and zero automatic retries; local model loading cannot be
+forcibly interrupted by this cooperative deadline. No persistent conversations
+exist yet. External LangSmith payload capture is disabled even if shell tracing
+is enabled; existing sanitized OpenTelemetry remains available.
+
+## Implemented Features (Days 1--14)
 
   -----------------------------------------------------------------------
   Area                                Implemented capability

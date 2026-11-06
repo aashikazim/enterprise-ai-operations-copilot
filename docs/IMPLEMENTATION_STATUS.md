@@ -45,7 +45,7 @@ From `backend/`:
 | 11 | Completed: opt-in sampled durable evaluation; independent transaction; tenant snapshot checks; worker tests |
 | 12 | Completed: tenant-admin summaries, pagination, Prometheus text, operator counters, privacy policy |
 | 13 | Completed: trace propagation, privacy tests, real ARM64 collector/Jaeger smoke |
-| 14 | Planned: bounded LangGraph workflow |
+| 14 | Completed: authenticated bounded read-only LangGraph reusing RAG |
 | 15 | Planned: typed tenant-authorized tools |
 | 16 | Planned: queue benchmark and scaling ADR |
 | 17 | Planned: durable conversations/checkpoints |
@@ -158,3 +158,14 @@ collector/Jaeger services in `copilot-tracing-check`, emitted one content-free
 Jaeger HTTP API. Result: force_flush True, one trace with smoke.synthetic.
 Stopped only these test services afterward. No API/database service was started
 or changed. This completes the pending runtime check; Day 14 is next.
+
+## Day 14 — completed, 2026-11-05
+
+`app/services/agent_service.py` / `app/api/agents.py`: typed acyclic LangGraph,
+server-only frozen identity, auth recheck at each node, write refusal, existing
+RAG reuse, safe steps, recursion limit and cooperative deadline. Provider HTTP
+timeout 30s / zero retries; local model loads cannot be forcibly interrupted.
+LangSmith capture disabled explicitly. Added langgraph1.2.20/core1.7.6 and
+updated certifi to the required2026.10.23 pin. No schema changes.
+Targeted:10passed in2.18s; full regression command:134passed in13.18s; pip check
+passed. Models mocked. No push. Next: Day15 tenant-authorized typed tools.

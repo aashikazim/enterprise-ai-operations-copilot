@@ -81,3 +81,15 @@ authorization. Baggage/tracestate are dropped. Manual spans intentionally avoid
 automatic SQL parameters and exception text. SDK/exporter versions are pinned.
 The optional container stack is configured but runtime verification awaits
 Docker daemon permissions; in-memory end-to-end trace tests pass.
+
+Runtime follow-up: collector/Jaeger synthetic trace verification subsequently
+passed; the isolated test containers were stopped.
+
+## Day 14 agent
+
+Authenticated user → `app/api/agents.py` → typed LangGraph in
+`app/services/agent_service.py` → classify → existing RAG or refuse → end.
+Identity is frozen outside model-controlled graph state and rechecked against
+the database. Recursion and cooperative elapsed-time budgets bound the graph;
+no graph node writes enterprise records. No external LangSmith capture or
+checkpointer is enabled. Existing `/rag/ask` contract is preserved.

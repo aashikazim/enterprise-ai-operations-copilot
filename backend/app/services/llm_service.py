@@ -33,7 +33,7 @@ def get_openai_client() -> OpenAI:
             "OPENAI_API_KEY is not configured"
         )
 
-    return OpenAI(api_key=settings.openai_api_key)
+    return OpenAI(api_key=settings.openai_api_key, timeout=30, max_retries=0)
 
 
 @traced("llm.generate")
