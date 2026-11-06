@@ -93,3 +93,12 @@ Identity is frozen outside model-controlled graph state and rechecked against
 the database. Recursion and cooperative elapsed-time budgets bound the graph;
 no graph node writes enterprise records. No external LangSmith capture or
 checkpointer is enabled. Existing `/rag/ask` contract is preserved.
+
+## Day 15 tools
+
+Auth → typed read-only registry → independent session/user recheck → scoped
+Customer/Document/Ticket query → capped metadata/summary. Tool inputs reject
+caller tenant fields. Statement timeout is local to its transaction. Logs use
+only capability name/outcome/duration. Unknown writes return404; foreign record
+IDs are indistinguishable from missing records. Model/content cannot choose
+arbitrary code or modify server authorization.

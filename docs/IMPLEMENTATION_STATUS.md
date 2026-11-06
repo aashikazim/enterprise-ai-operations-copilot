@@ -46,7 +46,7 @@ From `backend/`:
 | 12 | Completed: tenant-admin summaries, pagination, Prometheus text, operator counters, privacy policy |
 | 13 | Completed: trace propagation, privacy tests, real ARM64 collector/Jaeger smoke |
 | 14 | Completed: authenticated bounded read-only LangGraph reusing RAG |
-| 15 | Planned: typed tenant-authorized tools |
+| 15 | Completed: typed read-only record tools, server authorization and bounded queries |
 | 16 | Planned: queue benchmark and scaling ADR |
 | 17 | Planned: durable conversations/checkpoints |
 | 18 | Planned: approval state machine |
@@ -169,3 +169,14 @@ LangSmith capture disabled explicitly. Added langgraph1.2.20/core1.7.6 and
 updated certifi to the required2026.10.23 pin. No schema changes.
 Targeted:10passed in2.18s; full regression command:134passed in13.18s; pip check
 passed. Models mocked. No push. Next: Day15 tenant-authorized typed tools.
+
+## Day 15 — completed, 2026-11-05
+
+Added tool_service.py, tool API/catalog and deterministic record-read graph
+routing. Four read tools; no write capability. Strict argument models, tenant
+filters, role/user recheck, independent transaction, output caps, SQL timeout
+and sanitized errors/audit logs. No migration/dependency. Targeted command
+`pytest tests/test_tools.py tests/test_agents.py -q -p no:cacheprovider --tb=short`: 
+20passed in4.41s. Full suite:144passed in15.88s. Initial Mock context-manager
+test error fixed with MagicMock. Paid calls mocked, no external action/push.
+Next: Day16 measured queue scalability decision and worker recovery improvements.

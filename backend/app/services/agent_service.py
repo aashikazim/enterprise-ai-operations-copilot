@@ -11,6 +11,7 @@ from langsmith import tracing_context
 from app.db.models import User
 from app.monitoring.tracing import span
 from app.services.rag_service import answer_question, build_rag_result, ABSTENTION_MESSAGE
+from app.services.tool_service import execute_tool
 
 
 @dataclass(frozen=True)
@@ -24,6 +25,9 @@ class AgentState(TypedDict, total=False):
     intent: str
     result: dict
     steps: list[dict]
+    tool_name: str
+    tool_arguments: dict
+    tool_results: list[dict]
 
 
 class AgentDeadlineExceeded(TimeoutError):
@@ -48,6 +52,19 @@ def run_agent(db, user, question, top_k=5, timeout_seconds=45):
         authorized()
         with span("agent.classify", **{"request.id": request_id}):
             write = re.match(r"\s*(create|update|delete|close|reopen|assign|send|post|approve)\b", state["question"], re.I)
+            question = state["question"].strip().lower()
+            tool_name, arguments = None, {}
+            if question in {"list tickets", "show tickets"}:
+                tool_name = "tickets.list"
+            elif question in {"list documents", "show documents"}:
+                tool_name = "documents.list"
+            elif question in {"show customer", "show my customer"}:
+                tool_name = "customers.current"
+            elif match := re.fullmatch(r"(?:show|get) ticket (\d+)", question):
+                tool_name, arguments = "tickets.get", {"ticket_id": int(match.group(1))}
+            if tool_name and not write:
+                return {"intent": "records", "tool_name": tool_name, "tool_arguments": arguments,
+                        "steps": [{"node": "classify", "status": "completed"}]}
             return {"intent": "unsupported_action" if write else "knowledge",
                     "steps": [{"node": "classify", "status": "completed"}]}
 
@@ -63,18 +80,28 @@ def run_agent(db, user, question, top_k=5, timeout_seconds=45):
         return {"result": build_rag_result(ABSTENTION_MESSAGE, []),
                 "steps": state["steps"] + [{"node": "write_not_enabled", "status": "blocked"}]}
 
+    def records(state):
+        authorized()
+        output = execute_tool(db, user, state["tool_name"], state["tool_arguments"])
+        authorized()
+        return {"result": build_rag_result(f"Found {len(output['items'])} authorized records.", []),
+                "tool_results": [output],
+                "steps": state["steps"] + [{"node": state["tool_name"], "status": "completed"}]}
+
     graph = StateGraph(AgentState)
     graph.add_node("classify", classify)
     graph.add_node("answer", answer)
     graph.add_node("refuse", refuse)
+    graph.add_node("records", records)
     graph.add_edge(START, "classify")
     graph.add_conditional_edges("classify", lambda state: state["intent"],
-                               {"knowledge": "answer", "unsupported_action": "refuse"})
+                               {"knowledge": "answer", "unsupported_action": "refuse", "records": "records"})
     graph.add_edge("answer", END)
     graph.add_edge("refuse", END)
+    graph.add_edge("records", END)
     # Disable external LangSmith capture even if a shell enables it. Our
     # OpenTelemetry spans contain safe metadata only, never graph payloads.
     with tracing_context(enabled=False), span("agent.run", **{"request.id": request_id}):
         value = graph.compile().invoke({"question": question}, {"recursion_limit": 6, "callbacks": []})
     return {"request_id": request_id, "mode": "read_only", "intent": value["intent"],
-            "result": value["result"], "steps": value["steps"]}
+            "result": value["result"], "steps": value["steps"], "tool_results": value.get("tool_results", [])}

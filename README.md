@@ -167,7 +167,20 @@ forcibly interrupted by this cooperative deadline. No persistent conversations
 exist yet. External LangSmith payload capture is disabled even if shell tracing
 is enabled; existing sanitized OpenTelemetry remains available.
 
-## Implemented Features (Days 1--14)
+## Enterprise read tools (Day 15)
+
+`GET /agents/tools` lists four authenticated read-only capabilities:
+`tickets.list`, `tickets.get`, `documents.list`, `customers.current`.
+Call `POST /agents/tools/tickets.get` with `{"arguments":{"ticket_id":1}}`.
+Arguments reject tenant IDs/unknown fields; lists cap at50. Every tool rechecks
+user/role in a separate session, applies tenant filters and sets a1000ms SQL
+statement timeout (pool checkout is separate). Results contain summaries and
+metadata, not full private descriptions/email. Mutating names are unregistered.
+Agent reads such as `list tickets`, `show ticket 1`, `list documents` and
+`show customer` return structured authorized records. Record text never selects
+a tool. Other questions continue through existing RAG; writes await approvals.
+
+## Implemented Features (Days 1--15)
 
   -----------------------------------------------------------------------
   Area                                Implemented capability
