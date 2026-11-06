@@ -50,7 +50,7 @@ From `backend/`:
 | 16 | Completed: measured PostgreSQL scaling ADR, concurrency, renewal and graceful shutdown |
 | 17 | Completed: owner/tenant-scoped conversations and durable fenced graph checkpoints |
 | 18 | Completed: durable human-approved ticket status changes with fenced execution |
-| 19 | Planned: bounded coordination assessment |
+| 19 | Completed assessment: no demonstrated policy gain; simpler production routing retained |
 | 20 | Planned: sandbox connector; live verification requires credentials |
 | 21 | Planned: React/TypeScript shell |
 | 22 | Planned: chat/citations |
@@ -213,3 +213,15 @@ interrupt claim. Existing manual ticket CRUD retained. Targeted20passed in7.57s;
 additional approval suite11passed in4.56s. Full regression167passed in33.32s, including migration alignment.
 No new dependency/development migration/paid request. Next: Day19 coordination
 assessment; adopt only if same-workload measurements justify complexity.
+
+## Day19 — assessment completed, 2026-11-05
+
+Offline typed one-node/three-role candidates over the same production authorized
+read-tool service.50/50policy cases passed for each; single-node p50/p95
+3.406/9.310ms, three-role3.742/7.213ms. No model calls or claimed live reasoning
+gain. Candidate remains offline because no correctness improvement was shown;
+ADR002 documents retaining simpler production routing per roadmap condition.
+Targeted2passed in1.00s; full regression169passed in34.89s. No dependency,
+schema change or remote action. Next: Day20 read-only sandbox connector.
+Credential-presence checks found no generic Slack/Jira sandbox token; live
+verification will require owner-provided sandbox access. Values were not printed.

@@ -229,7 +229,16 @@ process restart. Direct admin ticket CRUD remains its existing manual API.
 Migration `1a18a0000001` is additive. Audit events are append-only through the
 application, not tamper-proof against privileged database administrators.
 
-## Implemented Features (Days 1--18)
+## Coordination decision (Day19)
+
+An offline bounded three-role candidate was compared with a one-node equivalent
+on the same synthetic authorized-tool workload. Both passed50/50policy cases;
+no correctness gain was demonstrated, so the simpler production graph is
+retained. [ADR002](docs/adr/002-agent-coordination-assessment.md) records exact
+measurements and limits. This is not a live model task-success benchmark or a
+claim that a multi-agent production service was deployed.
+
+## Implemented Features (Days 1--19)
 
   -----------------------------------------------------------------------
   Area                                Implemented capability
