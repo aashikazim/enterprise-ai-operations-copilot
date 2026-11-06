@@ -209,7 +209,27 @@ removes only the owner's idle thread/messages/checkpoints. Expiry blocks access;
 automatic physical cleanup is not enabled. Migration `1a17a0000001` is additive;
 apply it before using these routes. No development migration was applied by tests.
 
-## Implemented Features (Days 1--17)
+## Human-approved ticket changes (Day 18)
+
+The agent can propose `close ticket 1` or `update ticket 1 to in_progress`.
+It returns `approval_required` and a persisted proposal; the ticket is unchanged.
+Direct proposals use `POST /approvals` with ticket_id, status and a UUID
+idempotency_key. List/detail expose only the requester's proposals, or the
+current tenant's proposals for admins. Arguments are immutable through the API.
+
+An authenticated tenant admin explicitly calls `POST /approvals/{id}/approve`
+(or `/reject`), then separately `/execute`. Approval alone performs no ticket
+write. Execution rechecks executor and approver permission, expiry, payload
+integrity and expected ticket state, and atomically commits the ticket change,
+terminal state and audit event. Concurrent/replayed execution records one
+mutation. Proposals expire after15minutes; stale/tampered targets fail visibly.
+The durable approval record is the graph's approval boundary; no native graph
+interrupt or autonomous write is claimed. Approval/audit data persists after
+process restart. Direct admin ticket CRUD remains its existing manual API.
+Migration `1a18a0000001` is additive. Audit events are append-only through the
+application, not tamper-proof against privileged database administrators.
+
+## Implemented Features (Days 1--18)
 
   -----------------------------------------------------------------------
   Area                                Implemented capability

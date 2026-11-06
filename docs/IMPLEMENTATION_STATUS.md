@@ -49,7 +49,7 @@ From `backend/`:
 | 15 | Completed: typed read-only record tools, server authorization and bounded queries |
 | 16 | Completed: measured PostgreSQL scaling ADR, concurrency, renewal and graceful shutdown |
 | 17 | Completed: owner/tenant-scoped conversations and durable fenced graph checkpoints |
-| 18 | Planned: approval state machine |
+| 18 | Completed: durable human-approved ticket status changes with fenced execution |
 | 19 | Planned: bounded coordination assessment |
 | 20 | Planned: sandbox connector; live verification requires credentials |
 | 21 | Planned: React/TypeScript shell |
@@ -201,3 +201,15 @@ delete conflict locks moved to an independent transaction. Stopped overlapping
 test processes and reran serially. Reset only approved disposable migration DB
 after prototype schema drift. Targeted7passed in2.74s; full regression156passed in26.31s, including migrations.
 No development migration or paid model call. Next: Day18 human approvals.
+
+## Day18 — completed, 2026-11-05
+
+Approval models/service/router and migration1a18a0000001; graph persists proposals
+only. Immutable API arguments/digest,15minute expiry, tenant/requester-scoped
+idempotency, admin approve/reject then separate execution. Revalidate executor,
+approver, expected ticket state and payload. Atomic local mutation/status/event
+and row locks prevent double execution. No external write or native LangGraph
+interrupt claim. Existing manual ticket CRUD retained. Targeted20passed in7.57s;
+additional approval suite11passed in4.56s. Full regression167passed in33.32s, including migration alignment.
+No new dependency/development migration/paid request. Next: Day19 coordination
+assessment; adopt only if same-workload measurements justify complexity.

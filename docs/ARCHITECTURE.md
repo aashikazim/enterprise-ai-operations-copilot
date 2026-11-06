@@ -120,3 +120,13 @@ LangGraph background write ordering. Each transaction locks/validates the
 conversation before state access; stale run tokens cannot commit newer state.
 No pickle fallback. State can contain private content; no payload tracing.
 Logical expiry30days; owner DELETE cascades only idle conversation data.
+
+## Day18 approval boundary
+
+Graph/API proposes immutable ticket arguments → durable approval record →
+explicit tenant-admin approve/reject → separate explicit execute → transaction
+locks proposal+ticket, rechecks active roles/expiry/digest/expected state and
+commits ticket+terminal status+audit event atomically. No generic mutating tool
+is exposed. Idempotency key scopes tenant/requester; execution replays return
+the existing terminal result. Application append-only events are not a
+cryptographic defense against a fully privileged database operator.

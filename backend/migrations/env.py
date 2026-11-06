@@ -13,6 +13,7 @@ from app.db import models
 from app.db.evaluation_job_model import EvaluationJob
 from app.db.rag_metric_model import RAGMetric
 from app.db import conversation_models
+from app.db import approval_models
 from alembic import context
 
 # this is the Alembic Config object, which provides

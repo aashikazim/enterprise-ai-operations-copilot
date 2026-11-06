@@ -12,6 +12,7 @@ from app.auth.dependencies import get_current_user
 from app.db.database import get_db
 from app.services.agent_service import AgentDeadlineExceeded, run_agent
 from app.services.tool_service import execute_tool, list_tools, ToolNotFound
+from app.services.approval_service import ApprovalMissing, ApprovalConflict
 
 
 router = APIRouter(prefix="/agents", tags=["Agents"])
@@ -31,11 +32,12 @@ class AgentStep(BaseModel):
 
 class AgentResponse(BaseModel):
     request_id: str
-    mode: Literal["read_only"]
-    intent: Literal["knowledge", "unsupported_action", "records"]
+    mode: Literal["read_only", "approval_required"]
+    intent: Literal["knowledge", "unsupported_action", "records", "approval_required"]
     result: RAGResponse
     steps: list[AgentStep]
     tool_results: list[dict] = Field(default_factory=list)
+    approvals: list[dict] = Field(default_factory=list)
 
 
 @router.post("/run", response_model=AgentResponse)
@@ -46,8 +48,10 @@ def agent_run(data: AgentRequest, db: Session = Depends(get_db), user=Depends(ge
         raise HTTPException(504, "Agent deadline exceeded") from None
     except PermissionError:
         raise HTTPException(403, "Agent authorization revoked") from None
-    except ToolNotFound:
+    except (ToolNotFound, ApprovalMissing):
         raise HTTPException(404, "Record not found") from None
+    except ApprovalConflict:
+        raise HTTPException(409, "Approval proposal conflict") from None
     except ValidationError:
         raise HTTPException(422, "Invalid tool arguments") from None
     except (OpenAIError, RuntimeError):

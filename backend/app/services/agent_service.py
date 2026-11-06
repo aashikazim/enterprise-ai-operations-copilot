@@ -12,6 +12,7 @@ from app.db.models import User
 from app.monitoring.tracing import span
 from app.services.rag_service import answer_question, build_rag_result, ABSTENTION_MESSAGE
 from app.services.tool_service import execute_tool
+from app.services.approval_service import propose
 
 
 @dataclass(frozen=True)
@@ -30,6 +31,10 @@ class AgentState(TypedDict, total=False):
     tool_results: list[dict]
     history_context: str
     top_k: int
+    request_id: str
+    approval_ticket_id: int
+    approval_status: str
+    approvals: list[dict]
 
 
 class AgentDeadlineExceeded(TimeoutError):
@@ -55,6 +60,15 @@ def run_agent(db, user, question, top_k=5, timeout_seconds=45, *, checkpointer=N
         with span("agent.classify", **{"request.id": request_id}):
             write = re.match(r"\s*(create|update|delete|close|reopen|assign|send|post|approve)\b", state["question"], re.I)
             question = state["question"].strip().lower()
+            proposal = re.fullmatch(r"close ticket (\d+)", question)
+            update = re.fullmatch(r"update ticket (\d+) to (open|in_progress|closed)", question)
+            if proposal or update:
+                match = proposal or update
+                identifier = int(match.group(1))
+                if 0 < identifier <= 2147483647:
+                    return {"intent": "approval_required", "approval_ticket_id": identifier,
+                        "approval_status": "closed" if proposal else update.group(2),
+                        "steps": [{"node": "classify", "status": "completed"}]}
             tool_name, arguments = None, {}
             if question in {"list tickets", "show tickets"}:
                 tool_name = "tickets.list"
@@ -94,16 +108,25 @@ def run_agent(db, user, question, top_k=5, timeout_seconds=45, *, checkpointer=N
                 "steps": state["steps"] + [{"node": state["tool_name"], "status": "completed"}]}
 
     graph = StateGraph(AgentState)
+    def request_approval(state):
+        authorized()
+        proposal = propose(db, user, state["approval_ticket_id"], state["approval_status"], state["request_id"])
+        return {"approvals": [proposal],
+                "result": build_rag_result("Ticket change proposed. An authorized human must approve and execute it.", []),
+                "steps": state["steps"] + [{"node": "request_approval", "status": "blocked"}]}
+
     graph.add_node("classify", classify)
     graph.add_node("answer", answer)
     graph.add_node("refuse", refuse)
     graph.add_node("records", records)
+    graph.add_node("request_approval", request_approval)
     graph.add_edge(START, "classify")
     graph.add_conditional_edges("classify", lambda state: state["intent"],
-                               {"knowledge": "answer", "unsupported_action": "refuse", "records": "records"})
+                               {"knowledge": "answer", "unsupported_action": "refuse", "records": "records", "approval_required": "request_approval"})
     graph.add_edge("answer", END)
     graph.add_edge("refuse", END)
     graph.add_edge("records", END)
+    graph.add_edge("request_approval", END)
     # Disable external LangSmith capture even if a shell enables it. Our
     # OpenTelemetry spans contain safe metadata only, never graph payloads.
     with tracing_context(enabled=False), span("agent.run", **{"request.id": request_id}):
@@ -112,6 +135,7 @@ def run_agent(db, user, question, top_k=5, timeout_seconds=45, *, checkpointer=N
             configuration["configurable"] = {"thread_id": thread_id}
         value = graph.compile(checkpointer=checkpointer).invoke(
             None if resume else {"question": question, "history_context": history, "top_k": top_k,
-                                 "steps": [], "tool_results": []}, configuration)
-    return {"request_id": request_id, "mode": "read_only", "intent": value["intent"],
-            "result": value["result"], "steps": value["steps"], "tool_results": value.get("tool_results", [])}
+                                 "steps": [], "tool_results": [], "approvals": [], "request_id": request_id}, configuration)
+    return {"request_id": request_id, "mode": "approval_required" if value["intent"] == "approval_required" else "read_only", "intent": value["intent"],
+            "result": value["result"], "steps": value["steps"], "tool_results": value.get("tool_results", []),
+            "approvals": value.get("approvals", [])}
