@@ -44,7 +44,7 @@ From `backend/`:
 |---|---|
 | 11 | Completed: opt-in sampled durable evaluation; independent transaction; tenant snapshot checks; worker tests |
 | 12 | Completed: tenant-admin summaries, pagination, Prometheus text, operator counters, privacy policy |
-| 13 | Partial: sanitized spans and durable propagation verified; Docker permission blocks collector smoke |
+| 13 | Completed: trace propagation, privacy tests, real ARM64 collector/Jaeger smoke |
 | 14 | Planned: bounded LangGraph workflow |
 | 15 | Planned: typed tenant-authorized tools |
 | 16 | Planned: queue benchmark and scaling ADR |
@@ -147,3 +147,14 @@ provisioning remain explicit owner decisions.
   verify a synthetic trace in Jaeger, stop only test services, then complete
   Day 13 and continue Day 14. Do not change socket permissions/group grants
   without explicit authorization. Days 14–30 remain unimplemented.
+
+## Day 13 runtime completion — 2026-11-05
+
+Docker membership was restored by the owner; this session still had stale
+supplementary groups. `sg docker` used the existing membership without modifying
+socket/account permissions. Docker Server 28.3.3 responded. Started only the
+collector/Jaeger services in `copilot-tracing-check`, emitted one content-free
+`smoke.synthetic` span with SDK force-flush, and fetched that exact trace from
+Jaeger HTTP API. Result: force_flush True, one trace with smoke.synthetic.
+Stopped only these test services afterward. No API/database service was started
+or changed. This completes the pending runtime check; Day 14 is next.

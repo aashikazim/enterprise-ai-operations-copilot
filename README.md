@@ -118,7 +118,7 @@ reset on restart. See [payload policy and metric definitions](docs/EVALUATION_DA
 Automatic payload deletion is not enabled. RAG rate/latency summaries require
 persisted metrics; an empty population returns nulls, not zero-valued claims.
 
-## Request/worker tracing (Day 13; container smoke pending)
+## Request/worker tracing (Day 13)
 
 OpenTelemetry spans cover HTTP handling, retrieval, reranking, generation,
 evidence verification, queue writes/claims, worker evaluation and completion.
@@ -147,12 +147,13 @@ URLs are rejected. A collector receives trace IDs, so apply operational access
 controls even though payloads are excluded.
 
 ARM64 manifests were verified for collector `0.147.0` and Jaeger `2.5.0`.
-Compose configuration validation passed, but container startup/export smoke
-is **pending Docker daemon access**: this session received permission denied
-on `/var/run/docker.sock`. End-to-end API→queue→worker correlation was verified
-with an in-memory exporter and mocked model calls, not a deployed collector.
+Compose configuration and a real local collector/Jaeger smoke passed after
+Docker access was restored. One synthetic span was exported and retrieved by
+trace ID from Jaeger, then the isolated test services were stopped. End-to-end
+API→queue→worker correlation also passed with an in-memory exporter and mocked
+model calls. This is local verification, not a hosted deployment.
 
-## Implemented Features (Days 1--12; Day 13 partial)
+## Implemented Features (Days 1--13)
 
   -----------------------------------------------------------------------
   Area                                Implemented capability

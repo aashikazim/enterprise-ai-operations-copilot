@@ -74,3 +74,12 @@ be presented as proof of that deployment.
    under the original request, annotated with attempt count and queue wait.
 6. **Why pause on daemon permissions?** Broad socket/group changes expand host
    privileges. A failed runtime check is documented until explicitly resolved.
+
+## Runtime check completed after access restoration
+
+Owner restored Docker group access. Used `sg docker` for this process's stale
+group list; did not change host permissions. Docker 28.3.3 started the two
+isolated ARM64 test services. SDK force_flush returned True; Jaeger returned
+the exact synthetic trace and smoke.synthetic span. Both test services were
+stopped afterward. Day 13 is now completed; previous blocker notes are retained
+as debugging history.
