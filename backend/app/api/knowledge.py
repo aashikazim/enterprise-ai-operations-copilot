@@ -19,7 +19,7 @@ router = APIRouter(
 
 class DocumentIngestRequest(BaseModel):
     title: str = Field(min_length=1, max_length=255)
-    content: str = Field(min_length=1)
+    content: str = Field(min_length=1, max_length=100000)
 
 
 @router.post("/documents", status_code=201)

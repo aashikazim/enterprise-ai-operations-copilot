@@ -70,7 +70,8 @@ def create_invitation(
         # Never expose SMTP credentials or invitation tokens.
         # Delivery failure should be recorded through safe
         # operational monitoring, without sensitive data.
-        print(f"SMTP delivery failed: {type(e).__name__}: {e}")
+        import logging
+        logging.getLogger(__name__).error("Invitation delivery failed")
         raise HTTPException(
             status_code=503,
             detail="Unable to deliver invitation email",

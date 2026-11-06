@@ -1,4 +1,6 @@
 from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
@@ -20,6 +22,7 @@ from app.api.approvals import router as approvals_router
 from app.api.connectors import router as connectors_router
 from app.api.admin import router as admin_router
 from app.monitoring.tracing import TracingMiddleware
+from app.auth.http_security import SecurityMiddleware
 
 
 app = FastAPI(
@@ -29,6 +32,16 @@ app = FastAPI(
 
 app.state.limiter = limiter
 app.add_middleware(TracingMiddleware)
+app.add_middleware(SecurityMiddleware)
+
+
+@app.exception_handler(RequestValidationError)
+async def safe_validation_error(request, exc):
+    # Pydantic's default input/context fields can echo passwords or document text.
+    return JSONResponse(status_code=422, content={"detail": [
+        {"loc": list(error["loc"]), "type": error["type"], "msg": "Invalid request value"}
+        for error in exc.errors()
+    ]})
 
 app.add_exception_handler(
     RateLimitExceeded,

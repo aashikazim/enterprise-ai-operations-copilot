@@ -784,3 +784,13 @@ or reject; executing an approved change needs a separate fresh confirmation.
 Regular users can inspect their own proposals but cannot execute them. Expired
 items are disabled client-side and always checked server-side. Errors do not
 retry writes automatically. Displayed timestamps are recorded turn/audit times.
+
+## Security checks (Day25)
+
+HTTP bodies are capped at1MiB, document text at100kcharacters. Validation and
+server/SMTP errors omit sensitive input and raw exceptions. API responses use
+no-store,nosniff,frame denial and safe defaults; Swagger behavior is preserved.
+Run `python backend/scripts/check_secrets.py`, frontend `npm audit`, tests and
+build. The local Python audit used an isolated pip-audit tool environment.
+Current audits reported0known vulnerabilities after fixes; that is a snapshot,
+not a security certification. See docs/SECURITY.md for controls and residual risks.

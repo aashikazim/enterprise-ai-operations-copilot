@@ -6,7 +6,7 @@ from fastapi import (
     HTTPException,
 )
 from openai import OpenAIError
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
 from app.auth.dependencies import get_current_user
@@ -24,6 +24,7 @@ router = APIRouter(
 
 
 class RAGRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
     question: str = Field(
         min_length=1,
         max_length=2000,

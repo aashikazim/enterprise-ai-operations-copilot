@@ -166,3 +166,11 @@ Browser explicitly selects proposal → fresh authorized detail → confirmation
 admin approval → new confirmation → separate execution. Client guards reduce
 double clicks; backend Day18 transaction/fencing is authoritative. Conversation
 steps/results use owner-scoped persisted turns and real turn timestamps.
+
+## Day25 HTTP/privacy hardening
+
+Outer ASGI guard caps request bytes, suppresses raw unhandled errors and applies
+response security/cache defaults. Validation omits input/context fields. Ingest
+semantic limits complement the body cap. No CORS widening, auth redesign or
+claims of DB-RLS/host compromise protection. SECURITY.md records threat model,
+negative tests, advisory snapshot and residual deployment/retention risks.

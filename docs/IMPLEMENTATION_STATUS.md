@@ -56,7 +56,7 @@ From `backend/`:
 | 22 | Completed: conversations, composer, mode distinction, safe steps and source previews |
 | 23 | Completed: authorized metadata/quality dashboard with filters and pagination |
 | 24 | Completed: persisted execution/audit history and explicit approval/execute UI |
-| 25 | Planned: security review and negative tests |
+| 25 | Completed hardening/audits; upstream ARM64 wheel-tag pip-check warning documented |
 | 26 | Planned: measured optimization |
 | 27 | Planned: reproducible full-stack containers |
 | 28 | Planned: AWS runbook; cloud spending/deployment requires approval |
@@ -282,3 +282,18 @@ passed in37.62s;17frontend tests/build passed. No dependency/migration.
 Next: Day25 security hardening. Preparation npm audit found6affected packages
 (1moderate,3high,2critical); recommended same-major upgrades will be applied
 and verified before final security/deployment claims.
+
+## Day25 — completed hardening with documented packaging warning
+
+HTTP/body/ingest limits, sanitized validation/server/SMTP errors, security headers
+and seven new negative/secret-scanner tests. SECURITY.md records trust boundaries
+and remaining risks.199backend tests passed in40.19s;7security targets in2.13s;
+17frontend tests/build passed after router7.18.5,Vite7.3.7,Vitest5.1.0 updates.
+Npm audit now0known vulnerabilities(previous6affected packages). Isolated
+pip-audit found12findings in pip24.0; updated installer26.2and final audit found
+none, with no skipped packages. Git-visible secret scan0potential findings.
+Modern pip check now flags pre-existing NVIDIA0.8.1 upstream embedded SBSA tag
+on aarch64. Same-version official wheel reinstall confirmed the issue remains;
+PyTorch2.14.1+cu130 import/CPU tensor sum8/CUDA detection passed. Do not report
+pip check clean. No schema/development data changes. Next: Day26 measured
+retrieval/request/queue baselines and one bounded opt-in optimization.
