@@ -18,6 +18,7 @@ from app.api.agents import router as agents_router
 from app.api.conversations import router as conversations_router
 from app.api.approvals import router as approvals_router
 from app.api.connectors import router as connectors_router
+from app.api.admin import router as admin_router
 from app.monitoring.tracing import TracingMiddleware
 
 
@@ -46,6 +47,7 @@ app.include_router(agents_router)
 app.include_router(conversations_router)
 app.include_router(approvals_router)
 app.include_router(connectors_router)
+app.include_router(admin_router)
 
 @app.get("/")
 def root():

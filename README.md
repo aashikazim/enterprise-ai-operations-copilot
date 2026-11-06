@@ -767,3 +767,11 @@ Citation-number checks do not prove claim support. Model failures/abstention are
 explicit; no streaming or auto retry. Stop waiting cancels only the browser wait;
 refresh/inspect before retrying. Saved steps/tool results and approval proposals
 are shown without exposing raw server errors.
+
+## Administration UI (Day23)
+
+Tenant admins can inspect document/ticket/user metadata, filter tickets, page
+records, review Day12 quality/queue summaries and failed evaluations, and manually
+add a text document. Backend /admin/records/{documents|tickets|users} checks
+role/tenant and omits hashes/bodies. Null quality metrics mean not measured.
+Regular users cannot access these APIs even if they navigate to /admin directly.

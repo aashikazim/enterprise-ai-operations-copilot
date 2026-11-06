@@ -54,7 +54,7 @@ From `backend/`:
 | 20 | Partial: tenant-bound read-only Slack adapter tested offline; live sandbox credentials pending |
 | 21 | Completed: typed React shell, memory-only JWT login, proxy and interaction tests |
 | 22 | Completed: conversations, composer, mode distinction, safe steps and source previews |
-| 23 | Planned: admin dashboard |
+| 23 | Completed: authorized metadata/quality dashboard with filters and pagination |
 | 24 | Planned: execution/approval UI |
 | 25 | Planned: security review and negative tests |
 | 26 | Planned: measured optimization |
@@ -262,3 +262,12 @@ GET checks both tenant owners and caps returned content. No streaming/auto retry
 189passed in36.88s. No dependency/migration. Paid APIs mocked. Exact frontend
 commands: npm --prefix frontend test -- --reporter=dot; npm --prefix frontend run build.
 Next: Day23 admin/quality views backed by tenant-authorized APIs.
+
+## Day23 — completed locally, 2026-11-05
+
+Admin metadata router and React administration view reuse Day12 quality/queue
+APIs. Server enforces admin/tenant, explicit safe columns and pagination. UI
+shows null metrics honestly, failed jobs, filters and explicit text ingestion.
+2backend targets passed in0.94s; full191passed in36.84s;12frontend tests/build
+passed. Fixed an ambiguous empty-state test query. No dependency/migration.
+Next: Day24 reviewable execution and human-approval UI.

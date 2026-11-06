@@ -152,3 +152,10 @@ Browser answer/source metadata → separate authorized document/chunk preview re
 Both tenant owners must match current user; source numbers alone grant no access.
 React renders content as text and cancels stale previews. Browser abort is not
 server/model cancellation; no automatic resubmission or streaming is implemented.
+
+## Day23 administration
+
+Admin React view → existing Day12 aggregates + new tenant-scoped metadata
+queries. Server require_admin, bounded pagination and explicit column selection
+are the security boundary; hidden links are only convenience. Text ingestion
+reuses the existing authorized endpoint and local embedding pipeline.
