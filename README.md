@@ -238,7 +238,30 @@ retained. [ADR002](docs/adr/002-agent-coordination-assessment.md) records exact
 measurements and limits. This is not a live model task-success benchmark or a
 claim that a multi-agent production service was deployed.
 
-## Implemented Features (Days 1--19)
+## Read-only Slack sandbox connector (Day20; live check pending)
+
+`GET /connectors/slack/history?channel_id=C12345678&limit=15` requires the
+existing user JWT. The agent also understands `read slack channel C12345678`.
+A provider-neutral read interface uses a fixed first-party Slack HTTPS endpoint,
+per-tenant bot credentials and explicit channel allowlists. No posting, webhook,
+URL-fetching, OAuth provisioning or message ingestion is implemented.
+
+Owner-managed `SLACK_TENANT_CREDENTIALS` is a secret JSON mapping from server
+tenant ID to `bot_token` and `channel_ids`. Configure only a sandbox bot invited
+to permitted channels with minimal history scopes; keep values in local secret
+configuration, never Git. No generic/shared-token fallback exists. Local env
+configuration is not an encrypted production vault; production secret management
+and tenant consent are required before real data. See
+[connector setup](docs/CONNECTORS.md).
+
+Reads enforce pagination/response/text limits, disable redirects/proxy inheritance,
+use10s request timeouts and at most one bounded retry for rate/server failures.
+Long Retry-After returns429 rather than blocking. One read/second per tenant is
+an in-process guard, not a distributed provider quota guarantee. Missing config
+returns503; foreign channels403. Tokens/provider errors are never returned.
+Offline contract and graph tests passed; no real Slack data was fetched.
+
+## Implemented Features (Days 1--19; Day20 offline adapter)
 
   -----------------------------------------------------------------------
   Area                                Implemented capability

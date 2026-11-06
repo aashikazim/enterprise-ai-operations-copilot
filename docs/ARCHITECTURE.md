@@ -130,3 +130,11 @@ commits ticket+terminal status+audit event atomically. No generic mutating tool
 is exposed. Idempotency key scopes tenant/requester; execution replays return
 the existing terminal result. Application append-only events are not a
 cryptographic defense against a fully privileged database operator.
+
+## Day20 connector trust boundary
+
+Authenticated tenant → fixed Slack read adapter → tenant-specific bot token +
+channel allowlist → first-party HTTPS history endpoint. No arbitrary outbound
+URL, redirects, proxy inheritance, message posting or raw-error logging. Standalone
+reads are not persisted; conversation tool results can enter owner checkpoints.
+Live sandbox scope/account verification remains pending.

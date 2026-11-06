@@ -33,7 +33,7 @@ class AgentStep(BaseModel):
 class AgentResponse(BaseModel):
     request_id: str
     mode: Literal["read_only", "approval_required"]
-    intent: Literal["knowledge", "unsupported_action", "records", "approval_required"]
+    intent: Literal["knowledge", "unsupported_action", "records", "approval_required", "connector_read"]
     result: RAGResponse
     steps: list[AgentStep]
     tool_results: list[dict] = Field(default_factory=list)

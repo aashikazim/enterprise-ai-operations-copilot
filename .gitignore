@@ -12,3 +12,6 @@ build/
 # Local development instructions and handoff history
 /AGENTS.md
 /docs/PROJECT_CONTEXT.md
+
+# Owner-managed sandbox credentials
+/credentials/

@@ -51,7 +51,7 @@ From `backend/`:
 | 17 | Completed: owner/tenant-scoped conversations and durable fenced graph checkpoints |
 | 18 | Completed: durable human-approved ticket status changes with fenced execution |
 | 19 | Completed assessment: no demonstrated policy gain; simpler production routing retained |
-| 20 | Planned: sandbox connector; live verification requires credentials |
+| 20 | Partial: tenant-bound read-only Slack adapter tested offline; live sandbox credentials pending |
 | 21 | Planned: React/TypeScript shell |
 | 22 | Planned: chat/citations |
 | 23 | Planned: admin dashboard |
@@ -225,3 +225,17 @@ Targeted2passed in1.00s; full regression169passed in34.89s. No dependency,
 schema change or remote action. Next: Day20 read-only sandbox connector.
 Credential-presence checks found no generic Slack/Jira sandbox token; live
 verification will require owner-provided sandbox access. Values were not printed.
+
+## Day20 — offline implementation verified; live credentials pending
+
+connector_service.py provides a provider-neutral read protocol and tenant-bound
+Slack history adapter; connectors.py and explicit agent read routing reuse auth.
+Fixed HTTPS host, per-tenant channel allowlist/token, bounded response/pagination,
+no redirects/proxy inheritance, timeout/rate guard and bounded read-only retry.
+No writes/webhooks or secret persistence in DB. Local environment secrets are
+not a production encrypted vault. Official Slack method/rate docs checked.
+18targeted tests passed in0.87s; full regression187passed in35.37s. No dependency
+or migration. No live network request/paid call. Generic Slack/Jira sandbox
+credentials were absent; tenant sandbox mapping is default-empty. Live verification
+requires owner configuration and remains explicitly pending. Continue independent
+frontend work without changing these claims or enabling a connector automatically.

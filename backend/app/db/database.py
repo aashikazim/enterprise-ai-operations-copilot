@@ -34,6 +34,7 @@ class Settings(BaseSettings):
     otel_exporter_otlp_traces_endpoint: str = ""
     evaluation_worker_concurrency: int = Field(1, ge=1, le=8)
     evaluation_lease_seconds: int = Field(600, ge=30, le=3600)
+    slack_tenant_credentials: SecretStr = SecretStr("{}")
 
     @field_validator("rag_eval_enabled", "tracing_enabled", mode="before")
     @classmethod

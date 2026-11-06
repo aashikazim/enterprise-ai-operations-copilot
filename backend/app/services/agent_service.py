@@ -13,6 +13,7 @@ from app.monitoring.tracing import span
 from app.services.rag_service import answer_question, build_rag_result, ABSTENTION_MESSAGE
 from app.services.tool_service import execute_tool
 from app.services.approval_service import propose
+from app.services.connector_service import SlackReadConnector
 
 
 @dataclass(frozen=True)
@@ -35,6 +36,7 @@ class AgentState(TypedDict, total=False):
     approval_ticket_id: int
     approval_status: str
     approvals: list[dict]
+    connector_channel: str
 
 
 class AgentDeadlineExceeded(TimeoutError):
@@ -60,6 +62,10 @@ def run_agent(db, user, question, top_k=5, timeout_seconds=45, *, checkpointer=N
         with span("agent.classify", **{"request.id": request_id}):
             write = re.match(r"\s*(create|update|delete|close|reopen|assign|send|post|approve)\b", state["question"], re.I)
             question = state["question"].strip().lower()
+            channel = re.fullmatch(r"read slack channel ([CG][A-Z0-9]{8,31})", state["question"].strip(), re.I)
+            if channel:
+                return {"intent": "connector_read", "connector_channel": channel.group(1).upper(),
+                        "steps": [{"node": "classify", "status": "completed"}]}
             proposal = re.fullmatch(r"close ticket (\d+)", question)
             update = re.fullmatch(r"update ticket (\d+) to (open|in_progress|closed)", question)
             if proposal or update:
@@ -108,6 +114,14 @@ def run_agent(db, user, question, top_k=5, timeout_seconds=45, *, checkpointer=N
                 "steps": state["steps"] + [{"node": state["tool_name"], "status": "completed"}]}
 
     graph = StateGraph(AgentState)
+    def connector_read(state):
+        authorized()
+        output = SlackReadConnector(identity.customer_id).read_page(state["connector_channel"])
+        authorized()
+        return {"result": build_rag_result(f"Read {len(output['items'])} authorized Slack messages.", []),
+                "tool_results": [{"tool": "slack.history", **output}],
+                "steps": state["steps"] + [{"node": "slack.history", "status": "completed"}]}
+
     def request_approval(state):
         authorized()
         proposal = propose(db, user, state["approval_ticket_id"], state["approval_status"], state["request_id"])
@@ -120,13 +134,15 @@ def run_agent(db, user, question, top_k=5, timeout_seconds=45, *, checkpointer=N
     graph.add_node("refuse", refuse)
     graph.add_node("records", records)
     graph.add_node("request_approval", request_approval)
+    graph.add_node("connector_read", connector_read)
     graph.add_edge(START, "classify")
     graph.add_conditional_edges("classify", lambda state: state["intent"],
-                               {"knowledge": "answer", "unsupported_action": "refuse", "records": "records", "approval_required": "request_approval"})
+                               {"knowledge": "answer", "unsupported_action": "refuse", "records": "records", "approval_required": "request_approval", "connector_read": "connector_read"})
     graph.add_edge("answer", END)
     graph.add_edge("refuse", END)
     graph.add_edge("records", END)
     graph.add_edge("request_approval", END)
+    graph.add_edge("connector_read", END)
     # Disable external LangSmith capture even if a shell enables it. Our
     # OpenTelemetry spans contain safe metadata only, never graph payloads.
     with tracing_context(enabled=False), span("agent.run", **{"request.id": request_id}):
