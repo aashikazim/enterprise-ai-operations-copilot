@@ -307,3 +307,24 @@ model cost/quality claims. Initial benchmark target10passed in5.09s; full201
 passed in40.19s. Added HTTP orchestration target afterward:3passed in1.89s
 (202 tests now collected). No migrations/dependencies. APIs unchanged. Paid
 models mocked. Next: Day27 isolated reproducible Compose deployment verification.
+
+## Day27 — in progress
+
+Added deployment Compose override, configurable base ports, non-root Python3.12
+image, unprivileged React/Nginx image, additive migration command and /ready.
+Target1passed in0.47s; full203passed in38.90s;17frontend tests/build passed.
+Secret scan0. Isolated native ARM64 Docker build ongoing (large existing Torch/
+CUDA wheels). Runtime startup, proxy, migration and recovery checks pending;
+no completion claim yet. Development project/volume unchanged.
+
+### Day27 final — completed locally
+
+Native ARM64 build/start and fresh isolated migration to1a18a0000001/vector0.8.7/
+33indexes verified. Non-root API UID10001/cache writes and unprivileged frontend
+verified. Fixed startup worker missing-key crash (now idle/no claims) and stale
+Nginx backend DNS (dynamic resolver). DB outage503/reconnect200, API replacement,
+proxy/401/security headers and volume-preserving restart checked.8targeted tests
+passed in3.48s; final backend204passed in39.98s;17frontend tests/build passed.
+No new migration/package; Python base now3.12matching host. No live model/cloud
+verification or OS-layer scan. Commit follows; no push. Next: Day28 cloud runbook
+and CI, with cloud execution pending owner credentials/cost approval.

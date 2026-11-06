@@ -174,3 +174,17 @@ response security/cache defaults. Validation omits input/context fields. Ingest
 semantic limits complement the body cap. No CORS widening, auth redesign or
 claims of DB-RLS/host compromise protection. SECURITY.md records threat model,
 negative tests, advisory snapshot and residual deployment/retention risks.
+
+## Day26 retrieval cache boundary
+
+Optional in-process BM25 index cache keys include tenant plus exact contents;
+fresh DB tenant authorization and row loading always precede lookup. Default off,
+bounded entries/text size. No cached auth or cross-tenant result cache.
+
+## Day27 local deployment boundary
+
+Compose DB health → additive one-shot vector/Alembic migration → non-root API
+and worker. Unprivileged Nginx serves React and proxies same-origin /api to API.
+Separate persistent DB/model volumes, loopback local ports, resource limits and
+graceful shutdown. Cloud TLS/network/secret-manager boundaries remain a runbook,
+not an executed deployment. Health checks do not prove LLM availability.

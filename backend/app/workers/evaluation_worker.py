@@ -138,7 +138,15 @@ def run_worker(stop_event=None, concurrency=None, client_factory=None):
         for signum in (signal.SIGTERM, signal.SIGINT):
             previous_handlers[signum] = signal.signal(signum, lambda *_: stop.set())
     def consume():
-        client = (client_factory or (lambda: OpenAI(timeout=60, max_retries=0)))()
+        if client_factory is None and not settings.openai_api_key:
+            logger.warning("Evaluation worker waiting: provider credentials not configured")
+            # Do not claim/fail durable jobs in an offline developer deployment.
+            # Restart the worker after configuring credentials.
+            stop.wait()
+            return
+        client = (client_factory or (lambda: OpenAI(
+            api_key=settings.openai_api_key, timeout=60, max_retries=0,
+        )))()
         while not stop.is_set():
             try:
                 if not process_next_job(session_factory, client, lease_seconds=settings.evaluation_lease_seconds):

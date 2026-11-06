@@ -6,7 +6,7 @@ services:
       POSTGRES_PASSWORD:  ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
       POSTGRES_DB: copilot_db
     ports:
-      - "127.0.0.1:5432:5432"
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -15,11 +15,12 @@ services:
       timeout: 5s
       retries: 10
   backend:
+    image: ${COPILOT_BACKEND_IMAGE:-copilot-backend:local}
     build:
       context: ./backend
       dockerfile: Dockerfile
     ports:
-      - "192.168.68.58:8000:8000"
+      - "${BACKEND_BIND_ADDRESS:-192.168.68.58}:${BACKEND_PORT:-8000}:8000"
     environment:
       DATABASE_URL: postgresql+psycopg://copilot:${POSTGRES_PASSWORD}@db:5432/copilot_db
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Set JWT_SECRET_KEY}
@@ -35,6 +36,7 @@ services:
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1-mini}
       RAG_EVAL_ENABLED: ${RAG_EVAL_ENABLED:-false}
       RAG_EVAL_SAMPLE_RATE: ${RAG_EVAL_SAMPLE_RATE:-0.0}
+      RAG_BM25_CACHE_ENABLED: ${RAG_BM25_CACHE_ENABLED:-false}
       MONITORING_METRICS_TOKEN: ${MONITORING_METRICS_TOKEN:-}
       TRACING_ENABLED: ${TRACING_ENABLED:-false}
       OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-}

@@ -100,3 +100,23 @@ def test_shutdown_does_not_claim_new_work(monkeypatch):
     monkeypatch.setattr(worker, "process_next_job", claim)
     worker.run_worker(stop_event=stop, concurrency=2, client_factory=lambda: None)
     claim.assert_not_called()
+
+
+def test_offline_worker_never_claims_without_credentials(monkeypatch):
+    from app.workers import evaluation_worker as worker
+    monkeypatch.setattr(worker.get_settings(), 'openai_api_key', '')
+    stop = threading.Event()
+    claim, provider = Mock(), Mock()
+    monkeypatch.setattr(worker, 'process_next_job', claim)
+    monkeypatch.setattr(worker, 'OpenAI', provider)
+    thread = threading.Thread(target=worker.run_worker, kwargs={'stop_event': stop})
+    thread.start()
+    try:
+        time.sleep(.05)
+        assert thread.is_alive()
+        claim.assert_not_called()
+        provider.assert_not_called()
+    finally:
+        stop.set()
+        thread.join(timeout=2)
+    assert not thread.is_alive()

@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 WORKDIR /app
 
@@ -12,6 +12,13 @@ RUN python -m pip install --no-cache-dir --upgrade pip==26.2.0 && pip install --
 COPY app ./app
 COPY migrations ./migrations
 COPY alembic.ini .
+COPY scripts ./scripts
+
+RUN useradd --create-home --uid 10001 copilot \
+    && mkdir -p /home/copilot/.cache/huggingface \
+    && chown -R copilot:copilot /app /home/copilot/.cache
+ENV HF_HOME=/home/copilot/.cache/huggingface
+USER copilot
 
 EXPOSE 8000
 

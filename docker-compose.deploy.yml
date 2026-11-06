@@ -1,0 +1,72 @@
+# Additive local deployment: combine with docker-compose.yml.
+services:
+  migrate:
+    image: ${COPILOT_BACKEND_IMAGE:-copilot-backend:local}
+    build: ./backend
+    command: ["python", "-m", "scripts.migrate"]
+    environment:
+      DATABASE_URL: postgresql+psycopg://copilot:${POSTGRES_PASSWORD}@db:5432/copilot_db
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Set JWT_SECRET_KEY}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+    mem_limit: 1g
+  backend:
+    init: true
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    volumes:
+      - model_cache:/home/copilot/.cache/huggingface
+    mem_limit: 6g
+    stop_grace_period: 75s
+  worker:
+    image: ${COPILOT_BACKEND_IMAGE:-copilot-backend:local}
+    command: ["python", "-m", "app.workers.evaluation_worker"]
+    init: true
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+psycopg://copilot:${POSTGRES_PASSWORD}@db:5432/copilot_db
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?Set JWT_SECRET_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1-mini}
+      EVALUATION_WORKER_CONCURRENCY: ${EVALUATION_WORKER_CONCURRENCY:-1}
+      EVALUATION_LEASE_SECONDS: ${EVALUATION_LEASE_SECONDS:-600}
+      TRACING_ENABLED: ${TRACING_ENABLED:-false}
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:-}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    volumes:
+      - model_cache:/home/copilot/.cache/huggingface
+    mem_limit: 2g
+    stop_grace_period: 75s
+  frontend:
+    build: ./frontend
+    init: true
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-8080}:8080"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+    mem_limit: 128m
+  db:
+    restart: unless-stopped
+    mem_limit: 2g
+    stop_grace_period: 60s
+volumes:
+  model_cache:

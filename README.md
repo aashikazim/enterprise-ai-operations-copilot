@@ -798,3 +798,7 @@ not a security certification. See docs/SECURITY.md for controls and residual ris
 BM25 index caching is optional and disabled by default. See
 [performance measurements and retention tradeoffs](docs/PERFORMANCE.md) for
 reproducible synthetic benchmarks and `RAG_BM25_CACHE_ENABLED`.
+
+The additive [deployment guide](docs/DEPLOYMENT.md) covers the production frontend
+proxy, one-shot migrations, API, PostgreSQL and worker Compose services. Use a
+separate project and ports for verification; preserve existing database volumes.
