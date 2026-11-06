@@ -1,4 +1,6 @@
 import {chromium, expect} from '@playwright/test'
+import {mkdir} from 'node:fs/promises'
+import {join} from 'node:path'
 
 const origin = process.env.E2E_ORIGIN
 if (!origin || !/^http:\/\/127\.0\.0\.1:\d+$/.test(origin)) throw new Error('Only owned loopback test origin permitted')
@@ -44,6 +46,7 @@ try {
   await page.unroute('**/api/knowledge/documents/*/chunks/*')
   await page.getByRole('button',{name:'[Source 1]',exact:true}).click()
   await expect(page.getByRole('region',{name:'Source preview'})).toContainText('For MFA recovery')
+  if(process.env.E2E_SCREENSHOT_DIR){await mkdir(process.env.E2E_SCREENSHOT_DIR,{recursive:true});await page.screenshot({path:join(process.env.E2E_SCREENSHOT_DIR,'grounded-answer.png'),fullPage:true})}
   await page.getByLabel('Answer mode').selectOption('agent')
   await page.getByRole('button',{name:'New conversation',exact:true}).click()
   await page.getByLabel('Your question').fill('list tickets')
@@ -68,6 +71,7 @@ try {
   await expect(page.getByRole('heading',{name:'Recorded quality signals'})).toBeVisible()
   await expect(page.getByRole('row',{name:'request count 1',exact:true})).toBeVisible()
   await expect(page.getByText('Pending evaluations',{exact:true})).toBeVisible()
+  if(process.env.E2E_SCREENSHOT_DIR)await page.screenshot({path:join(process.env.E2E_SCREENSHOT_DIR,'administration.png'),fullPage:true})
   await page.setViewportSize({width:390,height:844})
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
   await page.getByRole('button',{name:'Sign out',exact:true}).click()

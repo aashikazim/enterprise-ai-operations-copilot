@@ -39,7 +39,7 @@ ingestion, tenant filters, citations, tools, approvals, dashboard and worker
 transactions. Embedding vectors, cross-encoder ranking, generation and evaluator
 outputs are replaced at model seams. It is **not** a live provider/inference test
 or a full Docker/browser deployment test. Native Docker startup/recovery was
-verified separately in Day27. Browser Chrome156/Playwright1.65.0 ran locally.
+verified separately in Day 27. Browser Chrome156/Playwright1.65.0 ran locally.
 
 ## Verified journey and faults
 
@@ -54,7 +54,7 @@ verified separately in Day27. Browser Chrome156/Playwright1.65.0 ran locally.
 | LLM unavailable | test_agents.py, test_evaluation_submission.py: sanitized503/no enqueue |
 | Worker failure/stale claim | test_queue_scaling.py, test_evaluation_queue.py: simulated expired lease/fencing/poison/retry |
 | Missing credentials | Worker waits without claims, graceful shutdown test + container |
-| DB outage/reconnect | Isolated Day27 container stop/readiness503/reconnect200 |
+| DB outage/reconnect | Isolated Day 27 container stop/readiness503/reconnect200 |
 | API replacement | Native container replacement; proxy dynamically re-resolves DNS |
 | Connector timeout/outage | test_connectors.py mocked HTTP, bounded retry/rate/allowlist |
 | Malformed/oversized documents | test_security_hardening.py, existing knowledge tests |
@@ -77,7 +77,7 @@ execution and a broader labeled dataset. Historical eval JSON is not promoted
 as a newly verified result. PERFORMANCE.md provides local timing measurements.
 Coverage percentage has not been measured; no coverage claim is made.
 
-Day29 follow-up closed the previously documented disconnected live-metrics path.
+Day 29 follow-up closed the previously documented disconnected live-metrics path.
 RAG now writes aggregate timings/abstention/citation flags with an independent,
 best-effort transaction; the worker updates matching tenant/request faithfulness
 inside fenced completion. No question/document text enters this table. Token
@@ -86,3 +86,12 @@ Additive migration1a29a0000001 relaxes only those three columns' nullability;
 rollback with null rows requires operator review, never fabricated replacement
 values. Recorded latency excludes metric persistence and enqueue overhead.
 Browser now verifies request count1 and mobile layout with real metric values.
+
+## Final gate (2026-11-05)
+
+- `RUN_BROWSER_E2E=1 BROWSER_EXECUTABLE_PATH=/usr/bin/google-chrome PYTHONDONTWRITEBYTECODE=1 .venv/bin/python -m pytest tests/ -q -p no:cacheprovider --tb=short` from backend: **214 passed in 46.41s**,0 failed/0 skipped.
+- `npm --prefix frontend test -- --reporter=dot`: **17 passed**.
+- `npm --prefix frontend run build` and `npm --prefix frontend run typecheck`: passed.
+- Native final Compose rebuild/start, schema head1a29a0000001, synthetic seed/login/tool/approval/execution and5HTTP smoke checks: passed.
+- Screenshot fixture run3passed in 3.85s; generated images inspected locally.
+- No coverage percentage, live model quality, hosted CI success or cloud deployment is claimed.

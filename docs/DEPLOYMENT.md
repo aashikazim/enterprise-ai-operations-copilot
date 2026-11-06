@@ -82,3 +82,9 @@ passed. Injected DB stop returned readiness503; reconnect returned200. Backend
 replacement recovered through Docker DNS. Full stop/start retained volumes and
 passed health gates. No development DB reset, real model download/inference,
 paid API call, cloud deployment or image OS vulnerability scan was performed.
+
+Final source follow-up: native rebuild/start upgraded the isolated existing volume
+to head `1a29a0000001`. Synthetic CLI seeding, real login/JWT, tenant-scoped tool
+read, proposal/approve/execute and the five HTTP smoke checks passed. No model
+provider was called. The temporary verification stack is stopped after checking;
+its project volumes remain retained. This is local evidence, not AWS deployment.

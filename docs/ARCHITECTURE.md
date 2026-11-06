@@ -1,205 +1,123 @@
-# Architecture and trust boundaries
+# Verified architecture and trust boundaries
 
-Verified 2026-11-05; existing package structure is retained.
+Verified from source and local tests on2026-11-05. Existing backend packages,
+FastAPI entrypoint, APIs and applied migrations are preserved.
 
 ```mermaid
 flowchart TD
-    Client[Untrusted client] --> Auth[FastAPI JWT verification / active user]
-    Auth --> Tenant[Server-side tenant and role]
-    Tenant --> CRUD[Customer reads / admin ticket writes / text ingestion]
-    Tenant --> RAG[RAG question]
-    RAG --> Dense[Tenant-filtered pgvector]
-    RAG --> BM25[Tenant-filtered BM25]
-    Dense --> Fusion[RRF / cross-encoder]
-    BM25 --> Fusion
-    Fusion --> Context[Ordered untrusted evidence]
-    Context --> LLM[External generator]
-    LLM --> Validate[Citation syntax / abstention]
-    Validate --> Client
-    Validate --> Sample[Default-off deterministic sampling]
-    Sample --> Verify[Separate DB session / verify evidence ownership and snapshot]
-    Verify --> Queue[(PostgreSQL evaluation_jobs)]
-    Queue --> Worker[Independent worker / locked claim / attempt fencing]
-    Worker --> Judge[External structured evaluator]
-    Judge --> Queue
-    Tenant --> Status[Tenant-safe job status]
-    Status --> Queue
-    CRUD --> DB[(Operational records / pgvector)]
-    Dense --> DB
-    BM25 --> DB
-    Verify --> DB
+  subgraph Untrusted[Untrusted browser and input]
+    UI[React / in-memory JWT]
+    Docs[Questions and uploaded text]
+  end
+  UI --> Proxy[Nginx same-origin API proxy]
+  Proxy --> Auth[FastAPI JWT / active user / server-derived tenant]
+  Auth --> RAG[RAG endpoint]
+  Auth --> Graph[Bounded LangGraph]
+  Auth --> Admin[Tenant admin / monitoring]
+  Docs --> RAG
+  Graph --> RAG
+  Graph --> Read[Typed read tools / role and tenant recheck]
+  Graph --> Prop[Immutable approval proposal]
+  Auth --> Decision[Explicit admin approve/reject/execute]
+  Prop --> Decision
+  Decision --> Atomic[Locked reauthorization / atomic ticket and audit]
+  Graph --> CP[Owner-scoped checkpoints and bounded history]
+  RAG --> Retrieve[Dense pgvector + genuine BM25]
+  Retrieve --> Rank[Deterministic RRF + cross-encoder]
+  Rank --> Gen[External text generator]
+  Gen --> Citations[Numbered citation validation / abstention]
+  Citations --> Sample[Default-off deterministic sampled evaluation]
+  Sample --> Verify[Tenant and exact evidence snapshot verification]
+  Verify --> Queue[(PostgreSQL evaluation_jobs)]
+  Queue --> Worker[Concurrent workers / leases / renewal / fencing / retries]
+  Worker --> Eval[External structured claim evaluator]
+  RAG --> Metric[Independent aggregate transaction]
+  Worker --> Metric
+  Admin --> PG[(PostgreSQL operational data / vector / metrics)]
+  Metric --> PG
+  Read --> PG
+  Atomic --> PG
+  CP --> PG
+  Retrieve --> PG
+  Graph --> Connector[Default-off fixed-host tenant Slack read adapter]
+  Connector --> Slack[External sandbox / live check pending]
+  RAG -. safe spans .-> OTEL[Optional collector / Jaeger]
+  Worker -. traceparent across queue .-> OTEL
 ```
 
-The sampled enqueue connection is synchronous bounded DB work; evaluator calls
-remain in the worker. Queue commit precedes enqueue success. Failure cannot
-commit/rollback the request's session. The RAG HTTP response shape is unchanged.
+## Identity and data boundaries
 
-## Trust boundaries
+JWT subject resolves an active DB user. Tenant and role come from that verified
+record; no model argument or browser-provided tenant ID establishes authority.
+Chunk retrieval verifies both document and chunk ownership before fusion.
+Read tools have typed bounded arguments, role/active-user checks and independent
+sessions. Conversations/checkpoints are owner AND tenant scoped, with run leases
+and bounded untrusted history. Checkpointer pending writes persist separately to
+handle LangGraph's checkpoint/write ordering; unsafe pickle fallback is disabled.
 
-- Client IDs do not establish tenant identity. JWT subject resolves an active
-  user; all reads/writes enforce tenant and role at the server.
-- Documents, questions and tool-like text are untrusted input, never authority.
-  Retrieval filters both document and chunk tenant before fusion/reranking.
-- Numbered evidence snapshots preserve generation order. Enqueue rechecks IDs,
-  content, title and tenant; it rejects changed or foreign evidence as a unit.
-- External model calls receive selected tenant evidence. This transmits content
-  to the configured provider; enable evaluation only for approved data handling.
-- Logs/metrics contain opaque request IDs, outcome enums and durations, never
-  raw prompts/evidence/tokens. Exception messages are excluded from queue logs.
-- Evaluation workers use database claims, bounded attempts and stale-attempt
-  rejection. Delivery is at-least-once, not exactly-once model execution.
-- Test and migration databases are separate allowlisted disposable databases;
-  tests must not mutate development or production schemas.
-- Future agents/tools/approvals/frontends are roadmap items, absent at audit.
+Questions, retrieved documents, chat history and connector messages remain
+untrusted data. Exact command routing, typed tools and server policy prevent
+model-generated authority. Graph recursion/cooperative deadlines and provider
+timeouts bound work; local model loading cannot be forcibly cancelled safely.
+External LangSmith payload capture is explicitly disabled. No production
+multi-agent path was enabled after the controlled coordination assessment.
 
-## Day 12 monitoring boundary
+## Durable evaluation and metrics
 
-`app/api/monitoring.py` uses the existing admin dependency for tenant summaries,
-paginated operational rows and tenant Prometheus text. All DB aggregates are
-filtered before grouping. Claim verdicts expand only within tenant-scoped SQL;
-raw claims never enter the response. `/metrics` is a separate operator surface
-disabled without its dedicated secret. It contains global process counters
-with fixed outcome labels and no tenant identifiers. Retention is documented
-in `EVALUATION_DATA_POLICY.md`; no automatic destructive cleanup is enabled.
+RAG returns the existing answer contract. Metrics use a separate short-lived
+transaction; no raw question/document enters the aggregate table. Unknown
+provider usage/cost is null. Recorded core RAG latency excludes aggregate-write
+and enqueue overhead, measured separately in PERFORMANCE.md.
 
-## Day 13 tracing boundary
+Evaluation is opt-in and deterministically sampled by request UUID. Abstentions,
+missing/changed/foreign evidence, invalid citations and failed generations do not
+enqueue. Exact ordered evidence snapshots are rechecked in an independent DB
+session. Enqueue failure is sanitized and cannot commit/rollback request work.
+A committed job precedes acknowledgement; evaluator calls never execute inline.
 
-```mermaid
-flowchart LR
-    HTTP[Safe HTTP span] --> RAG[Retrieval / reranking / model spans]
-    RAG --> ENQ[Evidence / enqueue spans]
-    ENQ --> JOB[(Nullable traceparent / request UUID)]
-    JOB --> WORKER[Worker span / attempt / queue wait]
-    WORKER --> EVAL[Evaluator / completion spans]
-    HTTP -. optional async OTLP .-> Collector[Local collector]
-    WORKER -. optional async OTLP .-> Collector
-    Collector --> Jaeger[Loopback Jaeger UI / in-memory storage]
-```
+Workers claim with SKIP LOCKED, renew leases independently, fence stale attempts
+and bound retries/backoff. Delivery/model calls are at-least-once; only fenced
+completion is authoritative. Permanent malformed/auth failures stop early.
+No configured provider key means idle/no claims. SIGTERM stops new claims and
+drains work. Completion links faithfulness only by matching tenant AND request.
+Metric/job read APIs filter tenant before aggregation. Global operator counters
+require a separate configured scrape token and have fixed safe labels.
 
-Incoming trace IDs are diagnostic correlation only, never tenant identity or
-authorization. Baggage/tracestate are dropped. Manual spans intentionally avoid
-automatic SQL parameters and exception text. SDK/exporter versions are pinned.
-The optional container stack is configured but runtime verification awaits
-Docker daemon permissions; in-memory end-to-end trace tests pass.
+## Human approval boundary
 
-Runtime follow-up: collector/Jaeger synthetic trace verification subsequently
-passed; the isolated test containers were stopped.
+Proposal arguments/expected target state/digest and audit events persist before
+any write. Admin approves/rejects explicitly, then explicitly executes. Execution
+locks approval and ticket, rechecks active executor/approver, tenant, expiry,
+arguments and expected state, and commits ticket/terminal status/event together.
+Executed replay does not mutate twice. Events are append-only through the app,
+not cryptographically immutable against DB administrators. Persisted conversation
+results are JSON-compatible, including proposal timestamps.
 
-## Day 14 agent
+## External and browser boundaries
 
-Authenticated user → `app/api/agents.py` → typed LangGraph in
-`app/services/agent_service.py` → classify → existing RAG or refuse → end.
-Identity is frozen outside model-controlled graph state and rechecked against
-the database. Recursion and cooperative elapsed-time budgets bound the graph;
-no graph node writes enterprise records. No external LangSmith capture or
-checkpointer is enabled. Existing `/rag/ask` contract is preserved.
+Slack uses tenant-specific tokens/channel allowlists, fixed HTTPS host, no
+redirects/arbitrary URLs/proxy inheritance, bounded pagination/timeouts/retries
+and local rate limiting. Read-only; no message posts or webhook receiver. Live
+sandbox verification is explicitly pending. Secrets belong in an owner-managed
+secret store; developer .env is not a production vault.
 
-## Day 15 tools
+React holds JWT only in memory, renders content as text and uses same-origin
+/api proxy. Source preview independently rechecks tenant. Hiding admin controls
+is convenience; backend policy is authoritative. Browser abort stops waiting,
+not server execution; inspect persisted state before retrying writes. API body
+limits, sanitized errors and security headers complement authorization.
 
-Auth → typed read-only registry → independent session/user recheck → scoped
-Customer/Document/Ticket query → capped metadata/summary. Tool inputs reject
-caller tenant fields. Statement timeout is local to its transaction. Logs use
-only capability name/outcome/duration. Unknown writes return404; foreign record
-IDs are indistinguishable from missing records. Model/content cannot choose
-arbitrary code or modify server authorization.
+## Deployment and verification boundaries
 
-## Day16 worker scaling
+Compose DB health → single additive vector/Alembic migration → non-root API and
+worker → unprivileged Nginx frontend. Native ARM64 startup, fresh schema/indexes,
+cache permissions, DB outage/reconnect, backend replacement and volume-preserving
+restart passed. Nginx dynamically resolves Docker DNS. No GPU passthrough or
+real-model inference claim follows from container health. Optional collector/
+Jaeger received a synthetic exported SDK span; local storage is non-durable.
 
-One PostgreSQL queue; configurable independent consumers and heartbeat sessions.
-Every completion/failure/renewal is fenced by job, attempt, running status and
-lease validity. No session crosses thread boundaries. SIGTERM/SIGINT stops new
-claims while existing work drains. ADR001 records actual local measurements
-and why a second queue is not justified.
-
-## Day17 conversation/checkpoint boundary
-
-Authenticated owner + tenant → conversation API →120s fenced run lease →
-LangGraph BaseCheckpointSaver implemented over SQLAlchemy/PostgreSQL →
-existing agent graph. Separate checkpoint/pending-write tables accommodate
-LangGraph background write ordering. Each transaction locks/validates the
-conversation before state access; stale run tokens cannot commit newer state.
-No pickle fallback. State can contain private content; no payload tracing.
-Logical expiry30days; owner DELETE cascades only idle conversation data.
-
-## Day18 approval boundary
-
-Graph/API proposes immutable ticket arguments → durable approval record →
-explicit tenant-admin approve/reject → separate explicit execute → transaction
-locks proposal+ticket, rechecks active roles/expiry/digest/expected state and
-commits ticket+terminal status+audit event atomically. No generic mutating tool
-is exposed. Idempotency key scopes tenant/requester; execution replays return
-the existing terminal result. Application append-only events are not a
-cryptographic defense against a fully privileged database operator.
-
-## Day20 connector trust boundary
-
-Authenticated tenant → fixed Slack read adapter → tenant-specific bot token +
-channel allowlist → first-party HTTPS history endpoint. No arbitrary outbound
-URL, redirects, proxy inheritance, message posting or raw-error logging. Standalone
-reads are not persisted; conversation tool results can enter owner checkpoints.
-Live sandbox scope/account verification remains pending.
-
-## Day21 browser boundary
-
-React/TypeScript → same-origin /api proxy → existing JWT FastAPI. Token held
-in memory, no persistent browser storage/cookie credential flow. Browser role
-navigation is convenience only; API enforces identity/role/tenant. /auth/me is
-additive and omits password hashes. No Sites hosting/account is registered.
-
-## Day22 source boundary
-
-Browser answer/source metadata → separate authorized document/chunk preview read.
-Both tenant owners must match current user; source numbers alone grant no access.
-React renders content as text and cancels stale previews. Browser abort is not
-server/model cancellation; no automatic resubmission or streaming is implemented.
-
-## Day23 administration
-
-Admin React view → existing Day12 aggregates + new tenant-scoped metadata
-queries. Server require_admin, bounded pagination and explicit column selection
-are the security boundary; hidden links are only convenience. Text ingestion
-reuses the existing authorized endpoint and local embedding pipeline.
-
-## Day24 approval UI
-
-Browser explicitly selects proposal → fresh authorized detail → confirmation →
-admin approval → new confirmation → separate execution. Client guards reduce
-double clicks; backend Day18 transaction/fencing is authoritative. Conversation
-steps/results use owner-scoped persisted turns and real turn timestamps.
-
-## Day25 HTTP/privacy hardening
-
-Outer ASGI guard caps request bytes, suppresses raw unhandled errors and applies
-response security/cache defaults. Validation omits input/context fields. Ingest
-semantic limits complement the body cap. No CORS widening, auth redesign or
-claims of DB-RLS/host compromise protection. SECURITY.md records threat model,
-negative tests, advisory snapshot and residual deployment/retention risks.
-
-## Day26 retrieval cache boundary
-
-Optional in-process BM25 index cache keys include tenant plus exact contents;
-fresh DB tenant authorization and row loading always precede lookup. Default off,
-bounded entries/text size. No cached auth or cross-tenant result cache.
-
-## Day27 local deployment boundary
-
-Compose DB health → additive one-shot vector/Alembic migration → non-root API
-and worker. Unprivileged Nginx serves React and proxies same-origin /api to API.
-Separate persistent DB/model volumes, loopback local ports, resource limits and
-graceful shutdown. Cloud TLS/network/secret-manager boundaries remain a runbook,
-not an executed deployment. Health checks do not prove LLM availability.
-
-## Day28 proposed cloud boundary — unexecuted
-
-CLOUD_RUNBOOK.md defines a proposed CPU ECS API/worker, private RDS/vector,
-CloudFront/private S3, TLS ALB, Secrets Manager and sanitized CloudWatch target.
-No cloud resources, IAM grants or deployment were executed. Manual readiness
-workflow has no write/OIDC permissions; actual GitHub reviewers need owner setup.
-
-## Day29 verified browser boundary
-
-Chromium → local Vite proxy → FastAPI per-request sessions → isolated PostgreSQL,
-LangGraph checkpoints, proposal approvals and real evaluation queue/worker. Model
-seams are mocked. Persisted conversation results are converted to JSON-compatible
-values (including approval timestamps) before JSONB storage. No live model score
-or cloud deployment follows from this integration check.
+Guarded disposable test DBs are separate from development. Browser integration
+uses real SQL/auth/graphs/approvals but mocked model seams. Cloud target, IAM,
+TLS and backups are an unexecuted proposal in CLOUD_RUNBOOK.md. No AWS resources,
+paid live verification, deployment claims, GitHub protection configuration or
+hosted CI success are implied by checked-in configuration.

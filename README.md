@@ -1,812 +1,238 @@
 # Enterprise AI Operations Copilot
 
-**A multi-tenant, production-oriented AI backend for enterprise
-knowledge retrieval, grounded question answering, and asynchronous
-quality evaluation.**
+A multi-tenant support and operations application: retrieve authorized knowledge,
+inspect numbered evidence, use bounded enterprise tools, and review proposed
+ticket changes before a human applies them. FastAPI, PostgreSQL/pgvector,
+LangGraph and a React/TypeScript interface share the existing backend structure.
 
-[![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-API-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-pgvector-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
-[![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
-![Status](https://img.shields.io/badge/Status-Active%20Development-orange)
-
-> **Development milestone: Day 11 — Sampled asynchronous evaluation.** This repository
-> is an evolving engineering portfolio project, not a
-> production-deployed service. The features below describe the
-> implementation through Day 11; future integrations are listed
-> separately.
-
-## Overview
-
-Enterprise teams need answers from internal knowledge sources, but a
-useful AI assistant must do more than generate plausible text. It must
-retrieve relevant evidence, respect tenant boundaries, identify
-unsupported claims, and remain reliable when evaluation workloads fail
-or take time.
-
-**Enterprise AI Operations Copilot** explores these requirements through
-a FastAPI backend combining PostgreSQL, hybrid retrieval,
-evidence-grounded generation, claim-level faithfulness evaluation, and a
-durable database-backed worker queue.
-
-The project is designed to demonstrate practical skills relevant to
-**Forward Deployed Engineering (FDE)**, **backend/infrastructure
-engineering**, and **applied AI engineering**: connecting customer needs
-to working APIs, building reliable data workflows, enforcing isolation,
-and evaluating AI quality with measurable signals.
+**Verified locally on Linux ARM64.** Native Compose build/start, migrations,
+proxy, DB reconnect and container replacement passed. Browser integration uses
+real SQL/auth/graphs/approvals with mocked models. Live Slack verification is
+pending at the owner's direction. AWS deployment and hosted CI execution have
+not occurred. [Exact status and daily evidence](docs/IMPLEMENTATION_STATUS.md).
 
 ## Architecture
 
-``` mermaid
-flowchart TD
-    Client[API Client] --> API[FastAPI]
-    API --> Auth[JWT Authentication / Tenant RBAC]
-    Auth --> Knowledge[Knowledge Ingestion]
-    Auth --> RAG[RAG Question Answering]
-    Knowledge --> Chunk[Chunking + Embeddings]
-    Chunk --> DB[(PostgreSQL + pgvector)]
-    RAG --> Dense[Dense Vector Retrieval]
-    RAG --> Sparse[BM25 Retrieval]
-    Dense --> DB
-    Sparse --> DB
-    Dense --> Fusion[Reciprocal Rank Fusion]
-    Sparse --> Fusion
-    Fusion --> Rerank[Cross-Encoder Reranking]
-    Rerank --> LLM[OpenAI Responses API]
-    LLM --> Validate[Citation Validation + Abstention]
-    Validate --> Client
-    Validate --> Sample[Opt-in sampled evaluation / verified evidence]
-    Sample --> Queue
-    EvalSubmit[Explicit Evaluation Submission / Demo Script] --> Queue[(PostgreSQL Evaluation Jobs)]
-    Queue --> Worker[Separate Evaluation Worker]
-    Worker --> Faith[Claim-Level Faithfulness Assessment]
-    Faith --> Queue
-    API --> JobStatus[Tenant-Scoped Evaluation Status]
-    JobStatus --> Queue
+```mermaid
+flowchart LR
+  UI[React browser / memory-only JWT] --> Proxy[Nginx same-origin API proxy]
+  Proxy --> API[FastAPI / active-user tenant and RBAC]
+  API --> Graph[Bounded LangGraph / durable conversations]
+  API --> RAG[Dense + BM25 / RRF / cross-encoder / citations]
+  Graph --> RAG
+  Graph --> Tools[Typed tenant-safe reads]
+  Graph --> Proposal[Durable ticket proposal]
+  Proposal --> Human[Admin approves then explicitly executes]
+  Human --> PG[(PostgreSQL / pgvector / records / checkpoints)]
+  RAG --> PG
+  Tools --> PG
+  RAG --> Gen[Configured external generator]
+  RAG --> Metrics[Independent aggregate persistence]
+  Metrics --> PG
+  RAG --> Sample[Opt-in sampled evidence verification]
+  Sample --> Jobs[(Durable evaluation jobs)]
+  Jobs --> Worker[Leases / heartbeat / retries / fencing]
+  Worker --> Judge[Configured external evaluator]
+  Worker --> Metrics
 ```
 
-**Day 11:** `/rag/ask` can durably enqueue sampled evaluations without an
-inline evaluator call. This is disabled by default. Internal/demo enqueue
-remains available; no public submission POST has been added. See
-[implementation status](docs/IMPLEMENTATION_STATUS.md),
-[trust boundaries](docs/ARCHITECTURE.md), and the
-[Day 11 journal](docs/learning-journals/day-11.md).
+[Trust boundaries](docs/ARCHITECTURE.md), [security](docs/SECURITY.md),
+[data retention/privacy](docs/EVALUATION_DATA_POLICY.md),
+[queue decision](docs/adr/001-postgresql-evaluation-queue.md),
+[coordination assessment](docs/adr/002-agent-coordination-assessment.md).
 
-Set `RAG_EVAL_ENABLED=true` and `RAG_EVAL_SAMPLE_RATE=0.1` in the API's
-environment to sample approximately 10% of eligible requests. PowerShell:
+## Implemented behavior and source
 
-```powershell
-$env:RAG_EVAL_ENABLED = "true"
-$env:RAG_EVAL_SAMPLE_RATE = "0.1"
-python -m uvicorn app.main:app --reload
-# Separate terminal, from backend with the same database/provider configuration:
-python -m app.workers.evaluation_worker
+| Capability | Main source paths under `backend/` unless noted |
+|---|---|
+| JWT, active-user checks, invitation-only onboarding, RBAC | `app/auth/` |
+| Customer/ticket operations and text knowledge ingestion | `app/api/{customers,tickets,knowledge}.py`, `app/db/models.py` |
+| MiniLM 384 embeddings, tenant-filtered pgvector and genuine BM25 | `app/services/{embedding,retrieval,bm25_retrieval}_service.py` |
+| Deterministic RRF, cross-encoder and retained PostgreSQL FTS comparison | `app/services/{hybrid_retrieval,reranking,keyword_retrieval}_service.py` |
+| RAG generation, citation checks and abstention | `app/services/rag_service.py`, `app/evals/answer_quality.py` |
+| Sampled async claim evaluation, independent transactions and safe metrics | `app/services/evaluation_submission.py`, `app/monitoring/`, `app/jobs/`, `app/workers/evaluation_worker.py` |
+| Bounded graph, typed read tools and durable owner-scoped checkpoints | `app/services/{agent,tool,conversation}_service.py` |
+| Human-approved, atomic ticket status updates and audit events | `app/services/approval_service.py`, `app/api/approvals.py` |
+| Default-off tenant-bound Slack history adapter, offline verified | `app/services/connector_service.py`, [setup](docs/CONNECTORS.md) |
+| Chat, citations, admin metrics, execution and approval interface | `frontend/src/{Chat,Admin,Activity}.tsx` |
+| Privacy-filtered OpenTelemetry / optional collector + Jaeger | `app/monitoring/tracing.py`, `docker-compose.tracing.yml` |
+
+The graph routes explicit read commands (`list tickets`, `show ticket 1`,
+`list documents`, `show customer`) and approval proposals (`close ticket 1`,
+`update ticket 1 to in_progress`). Other questions use existing RAG. Arbitrary
+model-selected writes are not enabled. Multi-agent production routing was not
+adopted: the controlled assessment did not demonstrate a policy benefit.
+PostgreSQL remains the sole queue; no Redis or Celery is required.
+
+## Repository
+
+```text
+backend/
+  app/{api,auth,db,evals,jobs,monitoring,services,workers}/
+  migrations/versions/       # additive Alembic history
+  scripts/                  # migration, safe test DB setup, local demo
+  tests/                    # unit, PostgreSQL integration, optional browser journey
+  evals/                    # synthetic cases and assessment runners
+  Dockerfile, requirements.txt, .env.example
+frontend/
+  src/                      # React/TypeScript + component tests
+  e2e/journey.mjs            # Chromium real-stack synthetic journey
+  Dockerfile, nginx.conf, package-lock.json
+ops/                        # tracing config and read-only HTTP smoke
+.github/workflows/          # offline CI and manual readiness; no AWS deployment
+docs/                      # status, architecture, ADRs, operations, journals
 ```
 
-Use `false`/`true` and a finite numeric rate in `[0,1]`; invalid values fail
-configuration validation. `backend/.env.example` provides placeholders.
-Sampling hashes a fresh server-generated request UUID; retries of an HTTP
-request are separate requests. Abstentions, missing evidence and invalid
-citations are skipped. Enqueue verifies the original ordered full-text chunk
-snapshot against both tenant owners, then commits through a separate session.
-Changed/deleted/foreign evidence is skipped as a unit. Enqueue errors return
-the original RAG answer and record only a safe outcome and duration.
+## Start locally with Docker
 
-Evaluation adds database latency to sampled requests, but no evaluator LLM
-latency. The worker may incur extra provider charges; enable only for data
-approved for provider processing. No high-risk classifier exists: high-risk
-content receives the same sampling policy and requires human review; scores
-are monitoring signals, not an authorization or correctness guarantee.
-The response shape is unchanged and does not expose an evaluation job ID.
-Process-local counters reset at restart; aggregated monitoring follows Day 12.
+From the repository root, copy `.env.example` to `.env` (`cp` on Linux;
+`Copy-Item` in PowerShell). Set independent, locally generated URL-safe secrets
+for POSTGRES_PASSWORD and JWT_SECRET_KEY. Keep the example's loopback bindings.
+Do not commit secrets. No OpenAI key is needed for auth/records/admin operation.
 
-## Monitoring (Day 12)
-
-Tenant administrators can query `GET /rag/monitoring/summary?hours=24`,
-`GET /rag/monitoring/jobs?status=failed&limit=50&offset=0`, and
-`GET /rag/monitoring/metrics` with their existing JWT. Summaries include
-current queue depth/age, expired leases, retries, completion throughput,
-processing duration, verdict counts and persisted RAG metric percentiles/rates.
-Job lists omit questions, answers, evidence and raw errors. All queries enforce
-the authenticated tenant before aggregation; regular users receive 403.
-
-`GET /metrics` exposes process-wide content-free enqueue counters only when
-`MONITORING_METRICS_TOKEN` is configured and supplied as its Bearer token.
-Tenant JWTs do not grant this operator permission. Both metric formats are
-Prometheus-compatible; no Prometheus server is deployed. Process counters
-reset on restart. See [payload policy and metric definitions](docs/EVALUATION_DATA_POLICY.md).
-Automatic payload deletion is not enabled. RAG rate/latency summaries require
-persisted metrics; an empty population returns nulls, not zero-valued claims.
-
-## Request/worker tracing (Day 13)
-
-OpenTelemetry spans cover HTTP handling, retrieval, reranking, generation,
-evidence verification, queue writes/claims, worker evaluation and completion.
-Only safe IDs, attempt/wait/status metadata are recorded; no automatic SQL
-statement, body, authorization-header, baggage or exception-text capture.
-W3C `traceparent` and an opaque request ID are stored on evaluation jobs by
-additive migration `1a13a0000001`. Existing null-context jobs remain readable.
-Apply migrations on the intended database before using the updated worker;
-the verification run applied them only to disposable test databases.
-
-Tracing is disabled by default. Enable `TRACING_ENABLED=true`; an empty
-`OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` provides local tracing without exporting.
-For optional collector/Jaeger services:
-
-```powershell
-docker compose -f docker-compose.yml -f docker-compose.tracing.yml up -d --build
-# Host-run worker/API configuration:
-$env:TRACING_ENABLED = "true"
-$env:OTEL_EXPORTER_OTLP_TRACES_ENDPOINT = "http://127.0.0.1:4318/v1/traces"
+```sh
+docker compose -f docker-compose.yml -f docker-compose.deploy.yml config --quiet
+docker compose -f docker-compose.yml -f docker-compose.deploy.yml up --build -d
+docker compose -f docker-compose.yml -f docker-compose.deploy.yml ps
 ```
 
-Jaeger UI is loopback-only at `http://127.0.0.1:16686`; in-memory traces vanish
-on container restart. OTLP export uses a bounded asynchronous batch processor;
-collector unavailability does not prevent API startup. Export credentials in
-URLs are rejected. A collector receives trace IDs, so apply operational access
-controls even though payloads are excluded.
+Open <http://127.0.0.1:8080>. Direct API docs: <http://127.0.0.1:8000/docs>.
+The one-shot migration service provisions vector before upgrading to Alembic
+head. It does not downgrade/delete data. Review and back up existing databases
+before upgrading. Fresh native ARM64 setup and volume-preserving restart were
+verified; the complete deployment procedure is in [DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
-ARM64 manifests were verified for collector `0.147.0` and Jaeger `2.5.0`.
-Compose configuration and a real local collector/Jaeger smoke passed after
-Docker access was restored. One synthetic span was exported and retrieved by
-trace ID from Jaeger, then the isolated test services were stopped. End-to-end
-API→queue→worker correlation also passed with an in-memory exporter and mocked
-model calls. This is local verification, not a hosted deployment.
+Create synthetic local records with an explicit command and a password prompt:
 
-## Read-only agent (Day 14)
-
-`POST /agents/run` accepts `{"question":"What is our MFA policy?","top_k":5}`
-with the existing Bearer JWT. The response includes intent, safe node statuses,
-an opaque request ID and the existing RAG result. A typed LangGraph classifies
-then invokes existing RAG or refuses writes. There is no autonomous tool write.
-Tenant identity is captured from auth and checked at node boundaries; caller
-tenant fields are rejected. The graph is acyclic with recursion limit 6 and a
-45-second cooperative deadline checked between nodes. Model HTTP requests have
-a 30-second timeout and zero automatic retries; local model loading cannot be
-forcibly interrupted by this cooperative deadline. No persistent conversations
-exist yet. External LangSmith payload capture is disabled even if shell tracing
-is enabled; existing sanitized OpenTelemetry remains available.
-
-## Enterprise read tools (Day 15)
-
-`GET /agents/tools` lists four authenticated read-only capabilities:
-`tickets.list`, `tickets.get`, `documents.list`, `customers.current`.
-Call `POST /agents/tools/tickets.get` with `{"arguments":{"ticket_id":1}}`.
-Arguments reject tenant IDs/unknown fields; lists cap at50. Every tool rechecks
-user/role in a separate session, applies tenant filters and sets a1000ms SQL
-statement timeout (pool checkout is separate). Results contain summaries and
-metadata, not full private descriptions/email. Mutating names are unregistered.
-Agent reads such as `list tickets`, `show ticket 1`, `list documents` and
-`show customer` return structured authorized records. Record text never selects
-a tool. Other questions continue through existing RAG; writes await approvals.
-
-## Worker scaling and recovery (Day 16)
-
-The PostgreSQL queue is retained after a synthetic local concurrency assessment;
-see [ADR001](docs/adr/001-postgresql-evaluation-queue.md). Set
-`EVALUATION_WORKER_CONCURRENCY` to1–8 (default1) and
-`EVALUATION_LEASE_SECONDS` to30–3600 (default600). Independent worker threads
-renew active leases and fence stale/expired writes. SIGTERM/SIGINT stops new
-claims and drains in-flight work. Malformed/auth-denied jobs are terminal;
-transient failures retain capped retries. Delivery remains at-least-once.
-
-## Durable conversations (Day 17)
-
-`POST /conversations` creates a30-day owner/tenant-scoped thread. List/get use
-`GET /conversations` and `GET /conversations/{id}` with bounded pagination.
-`POST /conversations/{id}/messages` accepts the agent question/top_k schema;
-`POST /conversations/{id}/resume` explicitly retries an interrupted read-only
-run from its stored graph checkpoint. A new graph instance uses PostgreSQL
-checkpoints after restart. No automatic model resubmission occurs. An explicit
-resume can repeat a model request if the earlier outcome was uncertain.
-
-A120-second run lease and token fence serialize each conversation. Checkpoint
-reads/writes require current owner, tenant, active identity and run token.
-History uses at most10messages/4000UTF-8bytes, marked untrusted; this conservatively
-bounds history tokens, not total provider input. User input/evidence remain
-separately bounded by existing contracts. `DELETE /conversations/{id}` explicitly
-removes only the owner's idle thread/messages/checkpoints. Expiry blocks access;
-automatic physical cleanup is not enabled. Migration `1a17a0000001` is additive;
-apply it before using these routes. No development migration was applied by tests.
-
-## Human-approved ticket changes (Day 18)
-
-The agent can propose `close ticket 1` or `update ticket 1 to in_progress`.
-It returns `approval_required` and a persisted proposal; the ticket is unchanged.
-Direct proposals use `POST /approvals` with ticket_id, status and a UUID
-idempotency_key. List/detail expose only the requester's proposals, or the
-current tenant's proposals for admins. Arguments are immutable through the API.
-
-An authenticated tenant admin explicitly calls `POST /approvals/{id}/approve`
-(or `/reject`), then separately `/execute`. Approval alone performs no ticket
-write. Execution rechecks executor and approver permission, expiry, payload
-integrity and expected ticket state, and atomically commits the ticket change,
-terminal state and audit event. Concurrent/replayed execution records one
-mutation. Proposals expire after15minutes; stale/tampered targets fail visibly.
-The durable approval record is the graph's approval boundary; no native graph
-interrupt or autonomous write is claimed. Approval/audit data persists after
-process restart. Direct admin ticket CRUD remains its existing manual API.
-Migration `1a18a0000001` is additive. Audit events are append-only through the
-application, not tamper-proof against privileged database administrators.
-
-## Coordination decision (Day19)
-
-An offline bounded three-role candidate was compared with a one-node equivalent
-on the same synthetic authorized-tool workload. Both passed50/50policy cases;
-no correctness gain was demonstrated, so the simpler production graph is
-retained. [ADR002](docs/adr/002-agent-coordination-assessment.md) records exact
-measurements and limits. This is not a live model task-success benchmark or a
-claim that a multi-agent production service was deployed.
-
-## Read-only Slack sandbox connector (Day20; live check pending)
-
-`GET /connectors/slack/history?channel_id=C12345678&limit=15` requires the
-existing user JWT. The agent also understands `read slack channel C12345678`.
-A provider-neutral read interface uses a fixed first-party Slack HTTPS endpoint,
-per-tenant bot credentials and explicit channel allowlists. No posting, webhook,
-URL-fetching, OAuth provisioning or message ingestion is implemented.
-
-Owner-managed `SLACK_TENANT_CREDENTIALS` is a secret JSON mapping from server
-tenant ID to `bot_token` and `channel_ids`. Configure only a sandbox bot invited
-to permitted channels with minimal history scopes; keep values in local secret
-configuration, never Git. No generic/shared-token fallback exists. Local env
-configuration is not an encrypted production vault; production secret management
-and tenant consent are required before real data. See
-[connector setup](docs/CONNECTORS.md).
-
-Reads enforce pagination/response/text limits, disable redirects/proxy inheritance,
-use10s request timeouts and at most one bounded retry for rate/server failures.
-Long Retry-After returns429 rather than blocking. One read/second per tenant is
-an in-process guard, not a distributed provider quota guarantee. Missing config
-returns503; foreign channels403. Tokens/provider errors are never returned.
-Offline contract and graph tests passed; no real Slack data was fetched.
-
-## Implemented Features (Days 1--19; Day20 offline adapter)
-
-  -----------------------------------------------------------------------
-  Area                                Implemented capability
-  ----------------------------------- -----------------------------------
-  API foundation                      FastAPI application, health
-                                      endpoint, automated tests
-
-  Data modeling                       PostgreSQL models for customers,
-                                      documents, and support tickets;
-                                      Alembic migrations
-
-  Security                            JWT authentication, tenant-scoped
-                                      access, role-based authorization,
-                                      invitation-only registration, login
-                                      rate limiting
-
-  Local infrastructure                Dockerized API and PostgreSQL with
-                                      pgvector; Docker Compose
-                                      development setup
-
-  Knowledge ingestion                 Document ingestion, text chunking,
-                                      384-dimensional
-                                      sentence-transformer embeddings
-
-  Semantic retrieval                  Vector similarity search over
-                                      PostgreSQL/pgvector
-
-  Grounded generation                 Retrieval-augmented answering
-                                      through the OpenAI Responses API,
-                                      with returned sources
-
-  Retrieval quality                   BM25 lexical search, dense
-                                      retrieval, reciprocal rank fusion
-                                      (RRF), cross-encoder reranking
-
-  Answer safeguards                   Citation validation, abstention
-                                      behavior, evaluation cases,
-                                      observability-oriented metrics
-
-  Faithfulness evaluation             Structured, claim-level assessment
-                                      with supported / unsupported /
-                                      contradicted verdicts and evidence
-                                      attribution
-
-  Evaluation persistence              RAG metrics model, migration, and
-                                      tested persistence helper; live
-                                      request persistence remains planned
-
-  Background processing               Durable PostgreSQL evaluation jobs,
-                                      separate polling worker, retries
-                                      with exponential backoff,
-                                      lease-based recovery, tenant-scoped
-                                      status lookup
-
-  Testing                             Pytest coverage across APIs,
-                                      database behavior,
-                                      retrieval/evaluation logic, retry
-                                      policy, and tenant isolation
-  -----------------------------------------------------------------------
-
-### Retrieval and Answering Pipeline
-
-1.  **Ingest:** Store enterprise documents and split them into
-    retrievable chunks.
-2.  **Embed:** Generate vector representations with
-    `sentence-transformers/all-MiniLM-L6-v2` (384 dimensions).
-3.  **Retrieve:** Run dense vector similarity and BM25 keyword
-    retrieval.
-4.  **Fuse:** Combine ranked results using reciprocal rank fusion,
-    `1 / (60 + rank)`.
-5.  **Rerank:** Apply `cross-encoder/ms-marco-MiniLM-L-6-v2` to improve
-    evidence relevance.
-6.  **Generate:** Ask `gpt-4.1-mini` to answer using the retrieved
-    context.
-7.  **Validate:** Check citations and apply abstention safeguards when
-    evidence is insufficient.
-8.  **Evaluate:** Measure retrieval quality (including Recall@K and MRR)
-    and assess answer faithfulness at the claim level using separate
-    evaluation utilities/worker jobs, optionally sampled from real requests.
-
-Day 11A connects the existing genuine BM25 service to hybrid retrieval.
-It retains `BM25Okapi` term-frequency/length normalization and uses positive
-IDF weights, `log(1 + (N - df + 0.5) / (df + 0.5))`, so matching singleton
-and small tenant corpora are not discarded by the positive-score filter.
-PostgreSQL full-text search remains available in
-`backend/app/services/keyword_retrieval_service.py` for explicit comparison;
-there is no automatic fallback. Both retrieval implementations filter the
-document and chunk tenant before scoring. RRF resolves equal scores by
-chunk ID. BM25 still builds an in-memory tenant index per request.
-
-### Durable Asynchronous Evaluation
-
-The Day 10 worker decouples faithfulness evaluation from interactive API
-requests:
-
--   Jobs are persisted in PostgreSQL with `pending`, `running`,
-    `completed`, or `failed` status.
--   Workers claim eligible jobs using
-    `SELECT ... FOR UPDATE SKIP LOCKED` to reduce duplicate concurrent
-    claims.
--   Each claimed job receives an execution lease; expired leases can be
-    reclaimed.
--   Transient failures are retried with capped exponential backoff and a
-    maximum attempt count.
--   Completion and failure updates verify the expected attempt number to
-    guard against stale worker updates.
--   Job-status lookups filter by both job ID and customer ID to maintain
-    tenant isolation.
-
-**Current limitations:** This is a database-backed polling queue rather
-than a dedicated broker. Operational alerting,
-and fully containerized worker deployment remain
-future hardening work.
-
-## Technology Stack
-
-  -----------------------------------------------------------------------
-  Layer                               Technology
-  ----------------------------------- -----------------------------------
-  Language                            Python 3.11
-
-  API                                 FastAPI, Pydantic
-
-  Database                            PostgreSQL, pgvector
-
-  ORM / migrations                    SQLAlchemy, Alembic
-
-  Authentication                      JWT, tenant-scoped RBAC
-
-  Embeddings                          Sentence Transformers
-                                      (`all-MiniLM-L6-v2`)
-
-  Lexical retrieval                   `rank-bm25`
-
-  Ranking                             Reciprocal Rank Fusion;
-                                      CrossEncoder
-                                      (`ms-marco-MiniLM-L-6-v2`)
-
-  Generation / evaluation             OpenAI Responses API
-                                      (`gpt-4.1-mini` for answer
-                                      generation)
-
-  Background jobs                     PostgreSQL-backed queue and
-                                      standalone Python worker
-
-  Infrastructure                      Docker, Docker Compose
-
-  Testing                             pytest
-  -----------------------------------------------------------------------
-
-## Getting Started
-
-The commands below assume **Windows PowerShell**, with Docker Desktop
-running. Paths and configuration may need adjustment for your local
-environment.
-
-### 1. Clone the repository
-
-``` powershell
-git clone https://github.com/aashikazim/enterprise-ai-operations-copilot.git
-cd enterprise-ai-operations-copilot
+```sh
+docker compose -f docker-compose.yml -f docker-compose.deploy.yml exec backend python -m scripts.seed_demo --confirm-local-demo
 ```
 
-### 2. Start the local services
+Sign in as `admin@demo.example` with the password you chose. The command refuses
+to overwrite existing demo records and creates two synthetic tenants and tickets;
+it makes no model calls. Upload the synthetic text from
+[demo_documents.json](backend/evals/demo_documents.json) through Administration.
+Ingestion loads the local embedding model; generation requires a configured
+provider key. Model downloads and live inference are not part of the offline demo.
+Do not expose the development stack directly to the internet.
 
-``` powershell
-docker compose up -d --build
-```
+Stop with `docker compose -f docker-compose.yml -f docker-compose.deploy.yml down`.
+**Keep database volumes.** Never use `down -v` on data you need to retain.
 
-Review `compose.yaml` or `docker-compose.yml` in the repository for
-service names, exposed ports, and database credentials. If you prefer
-running FastAPI directly on Windows, you can use Docker only for
-PostgreSQL.
+## Develop and test
 
-### 3. Set up the Python backend
+Use Python3.12 and Node22.12+. `backend/requirements.txt` is UTF-16: pip reads it
+as supplied; preserve encoding when editing. Linux backend setup:
 
-``` powershell
+```sh
 cd backend
-py -3.11 -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
+python3.12 -m venv .venv
+.venv/bin/python -m pip install --upgrade pip==26.2.0
+.venv/bin/python -m pip install -r requirements.txt
+cp .env.example .env
+# Configure the local development DSN/JWT; do not point DATABASE_URL at a test DB.
+.venv/bin/python -m scripts.migrate
+.venv/bin/python -m uvicorn app.main:app --reload
+# Separate terminal, same backend environment:
+.venv/bin/python -m app.workers.evaluation_worker
 ```
 
-### 4. Configure environment variables
+PowerShell equivalents: `py -3.12 -m venv .venv`,
+`.\.venv\Scripts\Activate.ps1`, `Copy-Item .env.example .env`, then
+`python -m pip ...`, `python -m scripts.migrate`, `python -m uvicorn ...`.
+For a host-run backend, start only PostgreSQL with `docker compose up -d db`.
+Root Compose and `backend/.env` use separate settings files; match their local
+DB credentials/port. The host DSN uses localhost; containers use service `db`.
 
-Create `backend/.env` using the environment variables expected by the
-application. A typical local configuration includes:
+Frontend from root: `npm --prefix frontend ci`, then
+`npm --prefix frontend run dev` (loopback 5173, proxy defaults to 8000).
+An optional `docker-compose.frontend-dev.yml` provides a container dev workflow.
+Never run API/worker tests concurrently against their resetting test fixtures.
 
-``` dotenv
-DATABASE_URL=postgresql+psycopg://<user>:<password>@localhost:5432/copilot_db
-OPENAI_API_KEY=<your-openai-api-key>
+From `backend/`, keep DATABASE_URL pointing at the development DB for safety
+comparison, provision the two **dedicated disposable** databases, then test:
+
+```sh
+.venv/bin/python -m scripts.prepare_test_database
+.venv/bin/python -m scripts.prepare_test_database --database copilot_migration_test_db
+.venv/bin/python -m pytest tests/ -q -p no:cacheprovider
 ```
 
-The project also requires the JWT configuration used by its existing
-authentication settings. **Use the exact variable names defined by your
-settings module.** Never commit `.env`, API keys, passwords, or real
-customer documents.
+Those fixtures reset only guarded `copilot_test_db`; migration tests independently
+reset `copilot_migration_test_db`. Both must be disposable. Browser integration
+is opt-in; [VERIFICATION.md](docs/VERIFICATION.md) documents Chromium installation,
+Linux/PowerShell commands, mocks and fault coverage. Default runs skip that one
+test. CI opts in; hosted execution remains pending a push.
 
-> When running Python directly on Windows, `localhost` usually connects
-> to a published PostgreSQL container port. When running inside Docker
-> Compose, use the configured database service hostname instead.
-
-### 5. Apply database migrations
-
-First verify the intended host/database and provision pgvector using an
-authorized database account on that database:
-
-``` sql
-CREATE EXTENSION IF NOT EXISTS vector;
+```sh
+npm --prefix frontend test -- --reporter=dot
+npm --prefix frontend run build
+npm --prefix frontend audit --audit-level=low
+# Linux; PowerShell use python after activating the backend environment:
+backend/.venv/bin/python backend/scripts/check_secrets.py
+python3 ops/smoke_http.py http://127.0.0.1:8080
 ```
 
-This is a prerequisite for a fresh database: the historical vector-column
-migration runs before the Day 11A repair. Then apply migrations to the
-verified target:
-
-``` powershell
-alembic upgrade head
-```
-
-The `evaluation_jobs` table is introduced by the Day 10 migration. Do
-not substitute `drop_all()` for migrations; it can destroy existing
-data. Day 11A adds revision `1a11a0000001` after `fa8c76d8e74e` to create
-the missing `rag_metrics` table and restore the full-text GIN index. Earlier
-applied migrations are preserved. The index is also registered in ORM
-metadata to prevent future autogeneration from proposing its removal.
-
-### 6. Start the API
-
-If running the API directly from the `backend` directory:
-
-``` powershell
-python -m uvicorn app.main:app --reload
-```
-
-Open the interactive API documentation at **http://localhost:8000/docs**
-(assuming the default port and application entry point).
-
-### 7. Start the evaluation worker
-
-In a second PowerShell terminal:
-
-``` powershell
-cd backend
-.\.venv\Scripts\Activate.ps1
-python -m app.workers.evaluation_worker
-```
-
-The worker loads the backend environment configuration and polls the
-evaluation job table. An OpenAI API key is required for evaluations that
-call the model.
-
-### 8. Run tests
-
-From `backend/`, activate the Python environment (`backend/.venv` uses
-Python 3.12.3 on the verified ARM64 host; the Dockerfile uses Python 3.11).
-Keep `DATABASE_URL` pointing to the development database for the safety
-comparison. Provision the two disposable databases before running pytest:
-
-``` powershell
-python -m scripts.prepare_test_database
-python -m scripts.prepare_test_database --database copilot_migration_test_db
-python -m pytest tests/ -v -p no:cacheprovider
-```
-
-The script reads connection credentials from the environment or
-`backend/.env`, creates only the two allowlisted databases, and provisions
-`vector` without printing credentials. The account needs database-creation
-and extension privileges. Existing databases are reported rather than
-deleted. Both databases must be dedicated to this suite; review the
-reported tables if reusing an existing database.
-
-Tests reset tables in `copilot_test_db`. Migration tests use
-`copilot_migration_test_db`, downgrade to base, and exercise the complete
-migration chain, a repeated upgrade, schema/model alignment, and repair
-downgrade/re-upgrade. Neither database may contain data you need to keep.
-Run the suite serially; its reset fixtures do not support concurrent runs.
-
-Optional `TEST_DATABASE_URL` and `MIGRATION_TEST_DATABASE_URL` environment
-variables can override connection details, but database names must remain
-exactly as above. Safety checks reject the development database name and
-verify `current_database()` before fixture resets. The application is
-configured to use the test URL before application imports.
-
-Verified October 30, 2026: **78 tests passed**, including all 55 original
-collected tests and 23 added cases. External LLM calls and embeddings in
-integration tests are mocked. `tests/legacy_test_api.py` remains excluded
-by pytest's default naming pattern; its unauthenticated provisioning
-expectations are obsolete. Development database migrations were not
-applied during Day 11A validation.
-
-## API Surface
-
-Representative endpoints implemented during the first ten days:
-
-  -----------------------------------------------------------------------------
-  Method                  Endpoint                      Purpose
-  ----------------------- ----------------------------- -----------------------
-  GET                     `/health`                     Service health check
-
-  POST                    `/knowledge/documents`        Ingest a knowledge
-                                                        document
-
-  POST                    `/knowledge/search`           Search document chunks
-
-  POST                    `/rag/ask`                    Generate an
-                                                        evidence-grounded
-                                                        answer
-
-  GET                     `/rag/evaluations/{job_id}`   Retrieve an evaluation
-                                                        job's status within the
-                                                        authenticated tenant
-  -----------------------------------------------------------------------------
-
-Authentication, tenant-scoped customer reads, document ingestion/search,
-and ticket CRUD are part of the backend; customer creation and public
-registration are disabled. Refer to `/docs` for exact schemas.
-**The evaluation queue does not yet expose a public POST
-submission endpoint.**
-
-### Example: Ask a Knowledge Question
-
-``` http
-POST /rag/ask
-Authorization: Bearer <JWT_TOKEN>
-Content-Type: application/json
-
-{
-  "question": "What does the company's MFA policy require?"
-}
-```
-
-The response includes an answer and supporting sources; additional
-citation-validation and abstention fields are produced by the RAG
-service. Check the generated OpenAPI schema for the precise response
-shape in the current revision.
-
-## Evaluation and Reliability
-
-This project treats AI quality as an engineering concern rather than a
-demo-only feature.
-
-**Retrieval evaluation** - Recall@K: whether relevant evidence appears
-in the retrieved top-K results. - Mean Reciprocal Rank (MRR): how highly
-the first relevant result is ranked. - Hybrid retrieval and reranking
-experiments to compare retrieval strategies.
-
-**Answer evaluation** - Citation validation: check whether cited sources
-match available evidence. - Abstention: avoid presenting unsupported
-answers as established facts. - Claim-level faithfulness: classify
-claims as `supported`, `unsupported`, or `contradicted`, with supporting
-evidence references. - Structured evaluation results and persistence for
-later analysis.
-
-**Worker reliability** - Durable jobs survive API process restarts. -
-Row-level locks support concurrent worker claiming. - Lease expiry
-supports recovery from interrupted workers. - Bounded retries and
-recorded errors make failures inspectable. - Tenant-scoped job access
-limits cross-customer information exposure.
-
-## Development Progress
-
-  --------------------------------------------------------------------------
-  Day                     Milestone                  Status
-  ----------------------- -------------------------- -----------------------
-  1                       FastAPI, health check,     Complete
-                          PostgreSQL, pytest         
-
-  2                       Customer/document/ticket   Complete
-                          models, CRUD, Alembic      
-
-  3                       JWT authentication and     Complete
-                          tenant RBAC                
-
-  3.5                     Invitation-only            Complete
-                          registration, login rate   
-                          limiting, isolated test DB 
-
-  4                       Dockerized backend and     Complete
-                          pgvector                   
-
-  5                       Chunking, embeddings,      Complete
-                          vector search              
-
-  6                       RAG answering and          Complete
-                          retrieval metrics          
-
-  7                       BM25 + dense retrieval,    Complete
-                          RRF, cross-encoder         
-                          reranking                  
-
-  8                       Citation validation,       Complete
-                          abstention, evaluation     
-                          cases, observability       
-
-  9                       Claim-level faithfulness   Complete
-                          and persistent RAG metrics 
-
-  10                      Durable background         Complete
-                          evaluation jobs and worker 
-  --------------------------------------------------------------------------
-
-## Roadmap
-
-The following capabilities are **planned, not yet implemented**:
-
--   [ ] Persist metrics automatically for live `/rag/ask` requests.
--   [x] Connect opt-in evaluation sampling to real `/rag/ask` traffic.
--   [ ] Add an authenticated evaluation-submission API and worker health
-    checks.
--   [ ] Containerize and operationalize the worker in Docker Compose.
--   [ ] Add dashboards, tracing, latency/error metrics, and alerting.
--   [ ] Build customer-facing connectors and external API integrations.
--   [ ] Implement agentic workflows and tool calling (potentially with
-    LangGraph).
--   [ ] Add a React interface for enterprise users and operators.
--   [ ] Add CI/CD, deployment documentation, and production security
-    hardening.
-
-## Engineering Decisions and Trade-offs
-
-**Why PostgreSQL + pgvector?** A single database can store tenant
-metadata, operational entities, vectors, evaluation metrics, and durable
-job state, simplifying an early-stage deployment. At larger scale,
-dedicated search infrastructure may become useful.
-
-**Why hybrid retrieval?** Dense embeddings capture semantic similarity;
-BM25 helps with exact terms, identifiers, and keyword-heavy enterprise
-queries. Reciprocal rank fusion combines their complementary rankings
-before cross-encoder reranking.
-
-**Why asynchronous faithfulness evaluation?** A model-based evaluator
-adds latency and external API cost. Running it in a separate worker
-keeps the interactive request path independent of slower
-quality-assurance tasks.
-
-**Why database-backed jobs?** PostgreSQL transactions and row locking
-provide a straightforward durable queue for a portfolio-scale system. A
-production workload may justify a dedicated broker, distributed
-scheduler, and stronger monitoring.
-
-**Why explicit tenant filtering?** Authentication identifies the user;
-tenant-scoped queries enforce data separation. Both are required in
-multi-customer enterprise software.
-
-## Lessons from Implementation
-
-Day 10 exposed practical integration issues that informed the system
-design:
-
--   Standalone workers must explicitly load the same database and API
-    configuration as the web application.
--   Creating an Alembic migration does not apply it;
-    `alembic upgrade head` is required.
--   Integration tests must create valid parent records before inserting
-    rows with foreign keys.
--   Test fixtures must satisfy schema constraints such as required
-    customer email fields.
--   Development and test databases must remain isolated to avoid
-    accidental data loss.
-
-These are the kinds of deployment, integration, and reliability details
-that matter when delivering AI systems into real customer environments.
-
-## Security and Data Handling
-
--   JWT-protected routes and tenant-aware data access are implemented.
--   Local secrets belong in environment configuration, not source
-    control.
--   Evaluation jobs persist questions, answers, and retrieved evidence;
-    use synthetic data for demonstrations and establish retention/access
-    policies before handling sensitive customer content.
--   This project has not undergone a production security review and
-    should not be treated as compliance-certified.
-
-## Repository and Contributions
-
-This is an independently developed, actively evolving portfolio project.
-Development is tracked on the **`main`** branch. Issues and constructive
-feedback are welcome.
-
-**Repository:**
-[github.com/aashikazim/enterprise-ai-operations-copilot](https://github.com/aashikazim/enterprise-ai-operations-copilot)
-
-------------------------------------------------------------------------
-
-*Built to explore the engineering required to move enterprise AI from a
-promising prototype toward a reliable, measurable, multi-tenant
-product.*
-
-## Local frontend (Day21 foundation)
-
-From frontend/: `npm ci`, `npm test`, `npm run build`, then `npm run dev`.
-Node>=22.12; Vite proxies /api requests to the backend on8000. Existing
-invitation-only JWT users can log in. Tokens stay in memory; reload requires
-re-login. No hosted deployment/account provisioning. See frontend/README.md
-for PowerShell, optional Docker dev and security limits.
-
-## Conversation UI (Day22)
-
-The Conversations view supports durable owner-scoped threads and direct knowledge
-mode. Inspect source buttons to retrieve a fresh tenant-authorized chunk preview.
-Citation-number checks do not prove claim support. Model failures/abstention are
-explicit; no streaming or auto retry. Stop waiting cancels only the browser wait;
-refresh/inspect before retrying. Saved steps/tool results and approval proposals
-are shown without exposing raw server errors.
-
-## Administration UI (Day23)
-
-Tenant admins can inspect document/ticket/user metadata, filter tickets, page
-records, review Day12 quality/queue summaries and failed evaluations, and manually
-add a text document. Backend /admin/records/{documents|tickets|users} checks
-role/tenant and omits hashes/bodies. Null quality metrics mean not measured.
-Regular users cannot access these APIs even if they navigate to /admin directly.
-
-## Actions and history UI (Day24)
-
-The Actions & history view shows owner-scoped execution history and authorized
-proposal targets, expected state, effects, expiry and audit events. Admins approve
-or reject; executing an approved change needs a separate fresh confirmation.
-Regular users can inspect their own proposals but cannot execute them. Expired
-items are disabled client-side and always checked server-side. Errors do not
-retry writes automatically. Displayed timestamps are recorded turn/audit times.
-
-## Security checks (Day25)
-
-HTTP bodies are capped at1MiB, document text at100kcharacters. Validation and
-server/SMTP errors omit sensitive input and raw exceptions. API responses use
-no-store,nosniff,frame denial and safe defaults; Swagger behavior is preserved.
-Run `python backend/scripts/check_secrets.py`, frontend `npm audit`, tests and
-build. The local Python audit used an isolated pip-audit tool environment.
-Current audits reported0known vulnerabilities after fixes; that is a snapshot,
-not a security certification. See docs/SECURITY.md for controls and residual risks.
-
-BM25 index caching is optional and disabled by default. See
-[performance measurements and retention tradeoffs](docs/PERFORMANCE.md) for
-reproducible synthetic benchmarks and `RAG_BM25_CACHE_ENABLED`.
-
-The additive [deployment guide](docs/DEPLOYMENT.md) covers the production frontend
-proxy, one-shot migrations, API, PostgreSQL and worker Compose services. Use a
-separate project and ports for verification; preserve existing database volumes.
-
-[Cloud preparation](docs/CLOUD_RUNBOOK.md) defines an unexecuted AWS staging
-runbook and manual readiness gate. No cloud resources or deployment are claimed.
-Offline CI is configured; hosted execution is pending an authorized push.
-
-[Verification guide](docs/VERIFICATION.md): opt-in real Chromium journey over
-Vite/FastAPI/PostgreSQL, synthetic quality fixtures, fault matrix and explicit
-model-mocking limits. CI enables the browser test; local backends can opt in.
+## API and controls
+
+| Surface | Contract |
+|---|---|
+| `GET /health`, `/ready` | Process liveness, DB readiness respectively |
+| `POST /auth/login`, `GET /auth/me` | Form credentials → JWT; safe current identity |
+| `/auth/invitations/` | Admin invitation and token acceptance; SMTP setup required for delivery |
+| `/customers/`, `/tickets/` | Tenant-authorized operational records; platform provisioning is separate |
+| `POST /knowledge/documents`, `/knowledge/search` | Admin JSON text upload, authorized search |
+| `GET /knowledge/documents/{id}/chunks/{index}` | Tenant-verified source preview |
+| `POST /rag/ask` | `{ "question": "What is the MFA policy?", "top_k": 5 }` → answer/sources/abstention/citation flags |
+| `POST /agents/run`, `/agents/tools/{name}` | Bounded graph / typed read tool dispatch |
+| `/conversations` | Owner-only create/list/detail/messages/resume/delete |
+| `/approvals` | Propose/list/detail; separate admin `/{id}/approve`, `/reject`, `/execute` |
+| `GET /rag/evaluations/{id}` | Tenant-safe durable job status |
+| `GET /rag/monitoring/{summary,jobs,metrics}` | Admin tenant aggregates, paginated jobs and Prometheus text |
+| `GET /admin/records/{documents,tickets,users}` | Admin-safe paginated metadata |
+| `GET /connectors/slack/history` | Allowlisted tenant-bound read; disabled without local setup |
+
+JWT tenant/user context is server-derived; body-supplied tenant IDs grant no
+access. Browser JWTs live only in memory; reload requires login. Approval and
+execution are separate explicit choices with server-side reauthorization.
+Citation validation checks numbered references, not factual truth. Treat answers
+and retrieved content as untrusted and inspect evidence before acting.
+
+Configuration is documented in both `.env.example` files. Evaluation is off by
+default (`RAG_EVAL_ENABLED=false`, rate 0). Enabling it can transmit evidence to
+an evaluator and incur charges. Empty credentials leave the worker idle without
+claiming jobs. BM25 index caching is default-off; enabling it retains bounded
+corpus text in process memory. `/metrics` is disabled without a separate operator
+token. Tracing is optional and privacy-filtered; full SQL/prompt capture is absent.
+
+## Evidence, demo and limits
+
+**Final local gate:** 214 backend tests passed with Chromium enabled, 17 frontend
+tests passed, and production build/TypeScript checks passed. Both dependency
+audits reported no known vulnerabilities; the secret scan found no potential
+findings. These are dated local results, not hosted CI or security certification.
+
+Latest exact commands/counts are in [IMPLEMENTATION_STATUS.md](docs/IMPLEMENTATION_STATUS.md)
+and [VERIFICATION.md](docs/VERIFICATION.md). [PERFORMANCE.md](docs/PERFORMANCE.md)
+records repeated local timings: on a 200-chunk synthetic corpus, warm BM25 p50
+6.964→4.415ms with identical results; not an end-to-end RAG/model speedup.
+Two fixed identifier cases scored Recall@3/MRR 1.0; fixture citations 2/2 and
+no-match abstention 1/1. Mocked faithfulness is not evaluator accuracy. Real model
+quality, provider token usage/cost and sustained production load remain unmeasured.
+
+[5–8 minute demo](docs/DEMO.md), [operations/troubleshooting](docs/OPERATIONS.md),
+[API examples](docs/API_EXAMPLES.md), [changelog](docs/CHANGELOG.md),
+[FDE interview preparation](docs/FDE_INTERVIEW.md),
+[daily learning journals](docs/learning-journals/),
+[AWS preparation — unexecuted](docs/CLOUD_RUNBOOK.md).
+
+![Synthetic grounded answer with authorized source preview](docs/screenshots/grounded-answer.png)
+![Synthetic tenant administration and quality dashboard](docs/screenshots/administration.png)
+
+Remaining limits: live Slack and AWS pending; no streaming or hard cancellation
+of in-flight model calls; small corpora BM25 still loads all authorized chunks;
+logical retention is not automated physical erasure; audit events are application
+append-only, not tamper-proof against DB administrators; local role/containers
+are not a security certification. An upstream NVIDIA ARM64/SBSA wheel metadata
+tag makes modern `pip check` fail despite verified Torch import/CPU operations;
+see [SECURITY.md](docs/SECURITY.md). No real-model GPU benchmark is claimed.

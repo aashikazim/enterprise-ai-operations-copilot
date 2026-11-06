@@ -1,0 +1,10 @@
+[
+  {
+    "title": "Synthetic MFA Recovery Policy",
+    "content": "Synthetic demo policy only. Employees with ERR_MFA_403 must contact the help desk for identity verification. The help desk verifies identity before restoring MFA access. Never share an MFA recovery code in a ticket or chat."
+  },
+  {
+    "title": "Synthetic Backup Operations",
+    "content": "Synthetic demo policy only. When ERR_BACKUP_502 occurs, operations staff inspect storage capacity and the last successful backup. A human administrator reviews any proposed incident status change before it is executed."
+  }
+]
